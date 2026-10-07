@@ -1,5 +1,9 @@
 # bs-arm64: native ARM64 Beat Saber on Proton
 
+> **BS for Pico fork:** Pico Space Pro migration is being planned; this fork does not yet
+> produce an Android APK. See [AGENTS.md](AGENTS.md) and [Pico migration docs](docs/pico/README.md).
+> The Steam Frame results and instructions below describe the upstream implementation.
+
 > [!NOTE]
 > The easiest way to get this running on your Frame is the Frame-compatible BSManager fork, which
 > installs it with one click.

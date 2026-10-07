@@ -80,23 +80,10 @@ BSIPA versions:
 A version tested after the release can be added without a new build: edit the manifest and replace
 it on the release with `gh release upload <tag> bs-arm64-manifest.json --clobber`.
 
-[.github/workflows/release.yml](../.github/workflows/release.yml) does this on GitHub:
-
-- **Push a tag** `v*` → full build, package, and a GitHub release with the tarball, its checksum and
-  the manifest.
-- **Run it manually** (Actions → release → Run workflow) → build and package only. The tarball is
-  attached to the run as an artifact, which is useful as a dry run before tagging.
-
-```sh
-git tag v0.1.0 && git push origin v0.1.0
-```
-
-It runs on `ubuntu-24.04-arm`. If Arm runners aren't available for the repository, set the repository
-variable `BS_ARM64_RUNNER` to `ubuntu-24.04`. `deps/` is cached, keyed on `versions.env`,
-`patches/` and `build.sh`.
-
-The workflow also runs the installer upgrade/uninstall tests in
-`tools/test_installer_runtime.py` and checks that the tarball contains all three private runtime DLLs.
+The original GitHub release workflow and `.github/` directory have been removed in this fork.
+There is currently no automatic tag-triggered build or release. The commands above still describe
+the upstream DLL package; the planned Pico APK build is documented in [pico/build/README.md](pico/build/README.md).
+Installer tests remain available in `tools/test_installer_runtime.py`.
 
 Each release is tied to one Proton build. When Valve updates Proton ARM64, update the pins (below) and
 tag a new release.

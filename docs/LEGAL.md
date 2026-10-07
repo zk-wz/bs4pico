@@ -43,7 +43,7 @@ distributes its own `lsteamclient` builds publicly; this project does the same.
 
 ## Releases
 
-`./build.sh package` (and the GitHub release workflow) bundles exactly the files above, with
+`./build.sh package` bundles exactly the files above, with
 `licenses/` holding each upstream license (Proton, the Steamworks SDK license, Wine's LGPL, DXVK and
 its submodules, OpenXR-SDK, zlib, Mono, Doorstop, MonoMod, llvm-mingw's runtime) and `SOURCES.md`
 linking the exact upstream sources and this repository's commit. Nothing from the next table is in a
