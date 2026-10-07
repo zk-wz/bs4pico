@@ -39,6 +39,8 @@
 | `docs/pico/decisions/` | 关键技术选择及选择依据。 |
 | `docs/pico/research/` | 调研结论、来源和待验证问题。 |
 | `docs/pico/build/` | 环境清单、构建流程、缓存位置和复现说明。 |
+| `.agents/skills/` | 本项目维护的 Agent skills；技能知识与代码、验证状态一起更新。 |
+| `.agents/skills/pico-native-openxr/` | Pico Native OpenXR 接入 skill，涵盖官方来源、Android loader、Vulkan、输入/坐标、扩展性能及本仓库桥接边界。 |
 | `deps/` | 构建时下载的上游源码和工具链；忽略的生成目录。 |
 | `obj/` | 编译中间产物；忽略的生成目录。 |
 | `out/` | 上游构建输出 DLL 和辅助脚本；忽略的生成目录。 |
@@ -85,3 +87,5 @@
 - `LICENSE`：项目许可；`.gitignore`：当前生成产物忽略规则，新构建系统产生新缓存目录时需补充。
 
 下一步见 [Pico 文档入口](docs/pico/README.md) 和 [阶段规划](docs/pico/plans/ROADMAP.md)。
+
+涉及 Native OpenXR 调研、接入或诊断时，使用 [pico-native-openxr skill](.agents/skills/pico-native-openxr/SKILL.md)，按任务读取其 references。官方旧设备支持表不等于 Space Pro 真机结论；当前已查 LLM 文本入口及文档冲突见 skill 的来源说明。

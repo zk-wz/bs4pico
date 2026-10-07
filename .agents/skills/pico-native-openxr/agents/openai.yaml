@@ -1,0 +1,4 @@
+interface:
+  display_name: "PICO Native OpenXR"
+  short_description: "PICO 原生 OpenXR 接入、Vulkan 图像与输入桥开发指导"
+  default_prompt: "使用 $pico-native-openxr，依据官方来源与仓库现状推进 Pico 原生 XR 接入，标明需要真机确认的能力。"
