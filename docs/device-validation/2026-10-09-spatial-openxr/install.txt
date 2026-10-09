@@ -1,0 +1,3 @@
+Installing \\wsl.localhost\archlinux\home\zkwz\projects\bs4pico\prototypes\spatial-openxr\app\build\outputs\apk\debug\app-debug.apk -> emulator-5554...
+Performing Streamed Install
+Success

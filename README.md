@@ -1,7 +1,9 @@
 # bs-arm64: native ARM64 Beat Saber on Proton
 
-> **BS for Pico fork:** Pico Space Pro migration is being planned; this fork does not yet
-> produce an Android APK. See [AGENTS.md](AGENTS.md) and [Pico migration docs](docs/pico/README.md).
+> **BS for Pico fork:** A standalone dual-ABI Android prototype now verifies Spatial UI ↔
+> native Vulkan OpenXR switching on the x86_64 PICO emulator. Beat Saber/Wine/Steam integration
+> and ARM64 Space Pro validation are not implemented or passed. See [AGENTS.md](AGENTS.md),
+> [Pico migration docs](docs/README.md), and [prototype results](docs/device-validation/2026-10-09-spatial-openxr/RESULT.md).
 > The Steam Frame results and instructions below describe the upstream implementation.
 
 > [!NOTE]
@@ -76,7 +78,7 @@ separately.
 
 A CPU micro-benchmark run inside the game's Mono runtime shows the CPU gain on its own: native code is
 2–3× faster than FEX-translated x64 on everything except `Vector3` math (see
-[docs/FINDINGS.md](docs/FINDINGS.md#benchmark)).
+[docs/upstream/FINDINGS.md](docs/upstream/FINDINGS.md#benchmark)).
 
 ## Tip: turn off Adaptive SFX
 
@@ -85,7 +87,7 @@ list (not the main menu's Options). It measures the song's loudness on the audio
 of `Math.Pow` calls per second. On x64 that's cheap; on ARM64, Mono's `pow` is
 slow and the measurement takes most of the audio thread. With it off, frame times were steadier in a
 replay benchmark: 30 % fewer frames over 9.5 ms at 120 Hz. The trade-off: hit sounds no longer adapt
-to the song's loudness. See [docs/FINDINGS.md](docs/FINDINGS.md#frame-pacing).
+to the song's loudness. See [docs/upstream/FINDINGS.md](docs/upstream/FINDINGS.md#frame-pacing).
 
 ## Tip: turn off Screen Distortion
 
@@ -147,13 +149,13 @@ Frame, to the main menu with Steam and VR:
 
 `steam_api64.dll` implements the SDK 1.61 flat API and also serves games built against older SDKs:
 it exports their entry points (e.g. `SteamAPI_Init`) and hands out its own interface versions when a
-game asks for older ones ([ARCHITECTURE.md](docs/ARCHITECTURE.md#steam-steam_api64dll--lsteamclient_a64dll)).
+game asks for older ones ([ARCHITECTURE.md](docs/upstream/ARCHITECTURE.md#steam-steam_api64dll--lsteamclient_a64dll)).
 
 ## How it works
 
 The ARM64 player comes from the same Unity version the game was built with (6000.0.40f1). Every native
 piece around it that only existed as x64 or ARM64EC has an ARM64 replacement. Details are in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+[docs/upstream/ARCHITECTURE.md](docs/upstream/ARCHITECTURE.md).
 
 | Piece | Source |
 |---|---|
@@ -209,7 +211,7 @@ tar xf bs-arm64-*.tar.gz && cd bs-arm64-*/
 Or build it yourself:
 
 ```sh
-# 1. build the open-source parts (any Linux host, x86_64 or aarch64); see docs/BUILD.md
+# 1. build the open-source parts (any Linux host, x86_64 or aarch64); see docs/upstream/BUILD.md
 ./build.sh
 # 2. copy the repo (with out/) to the Frame, then there:
 install/bs-arm64.sh install ~/.local/share/BSManager/BSInstances/1.44.1
@@ -218,7 +220,7 @@ install/bs-arm64.sh launch  ~/.local/share/BSManager/BSInstances/1.44.1
 install/bs-arm64.sh uninstall ~/.local/share/BSManager/BSInstances/1.44.1
 ```
 
-See [docs/INSTALL.md](docs/INSTALL.md) for every file that gets touched.
+See [docs/upstream/INSTALL.md](docs/upstream/INSTALL.md) for every file that gets touched.
 
 > **Status:** verified end to end on the Frame. A clean `build.sh` output was installed with
 > `install/bs-arm64.sh` into a fresh copy of a BSManager 1.44.1 instance: Steam, VR and maps all work.
@@ -226,14 +228,14 @@ See [docs/INSTALL.md](docs/INSTALL.md) for every file that gets touched.
 
 ## Docs
 
-- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): every component, and why it's needed
-- [docs/BUILD.md](docs/BUILD.md): build requirements and steps
-- [docs/INSTALL.md](docs/INSTALL.md): what the installer changes, launching, uninstalling
-- [docs/FINDINGS.md](docs/FINDINGS.md): the debugging path, pitfalls, and the benchmark
-- [docs/LEGAL.md](docs/LEGAL.md): licenses, and what may or may not be redistributed
+- [docs/upstream/ARCHITECTURE.md](docs/upstream/ARCHITECTURE.md): every component, and why it's needed
+- [docs/upstream/BUILD.md](docs/upstream/BUILD.md): build requirements and steps
+- [docs/upstream/INSTALL.md](docs/upstream/INSTALL.md): what the installer changes, launching, uninstalling
+- [docs/upstream/FINDINGS.md](docs/upstream/FINDINGS.md): the debugging path, pitfalls, and the benchmark
+- [docs/upstream/LEGAL.md](docs/upstream/LEGAL.md): licenses, and what may or may not be redistributed
 
 ## License
 
 MIT (see [LICENSE](LICENSE)) for the original code. The patches follow their upstream licenses. This
 project is unofficial and not affiliated with Beat Games, Valve or Unity. See
-[docs/LEGAL.md](docs/LEGAL.md).
+[docs/upstream/LEGAL.md](docs/upstream/LEGAL.md).

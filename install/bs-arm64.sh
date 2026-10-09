@@ -274,7 +274,7 @@ cmd_install() {
     # lsteamclient_a64/wineopenxr_a64 talk to this Proton's unix libraries: the build must match.
     case $(proton_version) in
         "$PROTON_TAG" | "$PROTON_TAG"-*) ;;
-        *) die "Proton is $(proton_version), but these DLLs were built for $PROTON_TAG; rebuild them (docs/BUILD.md)" ;;
+        *) die "Proton is $(proton_version), but these DLLs were built for $PROTON_TAG; rebuild them (docs/upstream/BUILD.md)" ;;
     esac
     for f in lsteamclient_a64.dll wineopenxr_a64.dll steam_api64.dll openxr_loader.dll dxgi.dll d3d11.dll MonoPosixHelper.dll \
              LIV_Bridge.dll ucrtbs64.dll vcruntime140.dll msvcp140.dll; do

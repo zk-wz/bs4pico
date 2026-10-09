@@ -1,0 +1,86 @@
+{
+  "apk-metadata.json": {
+    "sha256": "f35b775c716f85bf10033caf9f2c719e7ef0cb32ded1d08f1c86ac6303aa5385",
+    "bytes": 621
+  },
+  "install.txt": {
+    "sha256": "238c221233863ca518a8ccf3c10e50ea833f431218559be2914bcf1e80d32418",
+    "bytes": 188
+  },
+  "lifecycle.log": {
+    "sha256": "b23af8dd7dfbbf8c4d9a8467797f05c5ffc1a0b227d06fc1413d72c374362e26",
+    "bytes": 173653
+  },
+  "manual-tracking-input.log": {
+    "sha256": "f2a2b669a063012b8cc30d26b3f64026676c50736008626c46bb69ebc6aa5e6b",
+    "bytes": 171657
+  },
+  "native-manual-tracking.png": {
+    "sha256": "5f88ba70c0ed1f2288478d21df4748390031646052d1f9afb8bdc9c6a15cf22e",
+    "bytes": 110595
+  },
+  "home-manual-after.log": {
+    "sha256": "01ef060547ca403193e2ac28f6ad0b5896ca171ae20301fca5428408297707fb",
+    "bytes": 191618
+  },
+  "home-confirmed-system.png": {
+    "sha256": "09529e5fdce8cab78231087f9328a66085bd4fd4251afde35465de0cbbe62bb7",
+    "bytes": 1996194
+  },
+  "home-relaunch-manager.log": {
+    "sha256": "ebf6b293a2fffa8d417d8bc968bae06e21f273c494ac830b8772dce6d8e0a97d",
+    "bytes": 192164
+  },
+  "home-relaunch-manager.png": {
+    "sha256": "3f2986b32b5cc1be549a3c1da0859f664b73cfc205432e20e6fcbee0829f849b",
+    "bytes": 1529719
+  },
+  "spatial-render-lifecycle.log": {
+    "sha256": "8c8487507cc561ce1bd974d5f266e628ad11ae49e374d2a8c01d329b8327c6bc",
+    "bytes": 873524
+  },
+  "activity-task-handoff.log": {
+    "sha256": "46dd53d7070d20b42ca73e1ada9c6dc2900dedda59ff5911e5f2fcab2e366be5",
+    "bytes": 63457
+  },
+  "direct-native.log": {
+    "sha256": "3cb58bea86943f0840da6d352938139b9dbb287ea2befe80a942114d116bf8ed",
+    "bytes": 24309
+  },
+  "direct-native.png": {
+    "sha256": "5f88ba70c0ed1f2288478d21df4748390031646052d1f9afb8bdc9c6a15cf22e",
+    "bytes": 110595
+  },
+  "direct-native-exit.log": {
+    "sha256": "644d13faa96a22eaf55d222e608e52dd1b432ef5bc334575607bdbb469c1cd5b",
+    "bytes": 56643
+  },
+  "direct-comparison.json": {
+    "sha256": "23a5ae5e9429f2d6d86f4fcd6060e90b80534d9990debac962384f3ff5894bb3",
+    "bytes": 951
+  },
+  "private-data-final.txt": {
+    "sha256": "9617196fa2313650f40748d6cff26e2619c3067dd5585b2412e5d7b4b42126f2",
+    "bytes": 58
+  },
+  "manager-start.png": {
+    "sha256": "8b84a0eab0981bfa019fcf5168f028ce1704809f7ee41224f20cff2ac495a14e",
+    "bytes": 5112618
+  },
+  "native-pico-cli.png": {
+    "sha256": "fd9ea2143a98a42d325ccf517c0ecfe0771d6f78b14f8af416d77515176e7fbb",
+    "bytes": 18678
+  },
+  "tool-comparison.txt": {
+    "sha256": "fc883661dc03e7e6facd91148c1a78c0148580dd6c5c2857063afa2dbbe342af",
+    "bytes": 1095
+  },
+  "emulator-stop.json": {
+    "sha256": "124411732b1a0bda8b3e67f39e06926b3cdd91ae9f9712af2977e59554b3baff",
+    "bytes": 493
+  },
+  "emulator-final-status.json": {
+    "sha256": "b146edce74e2fd86a3df503857ea5361640b6be484445dff8f78492e7268aa0d",
+    "bytes": 357
+  }
+}

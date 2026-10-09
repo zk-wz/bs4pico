@@ -1,0 +1,37 @@
+{
+  "after_spatial": {
+    "pid": "10426",
+    "elapsed_seconds": 5.449,
+    "begin": {
+      "user_ticks": 1095,
+      "kernel_ticks": 2247,
+      "threads": 66,
+      "rss_pages": 189862
+    },
+    "end": {
+      "user_ticks": 1103,
+      "kernel_ticks": 2277,
+      "threads": 66,
+      "rss_pages": 189862
+    },
+    "cpu_ticks_delta": 38
+  },
+  "direct_native": {
+    "pid": "11964",
+    "elapsed_seconds": 5.423,
+    "begin": {
+      "user_ticks": 370,
+      "kernel_ticks": 93,
+      "threads": 48,
+      "rss_pages": 159254
+    },
+    "end": {
+      "user_ticks": 385,
+      "kernel_ticks": 165,
+      "threads": 48,
+      "rss_pages": 159444
+    },
+    "cpu_ticks_delta": 87
+  },
+  "notes": "App process CPU ticks only, single 5-second samples. Same APK/scene; SpatialApplication.launch still registers SDK in both paths. Emulator foreground/occlusion and host load uncontrolled. No GPU, true frame-time, thermal or Space Pro conclusions."
+}

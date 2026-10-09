@@ -1,0 +1,11 @@
+# Keep raw evidence locally; commit RESULT, metadata and checksum indexes.
+*.png
+*.log
+*-activities.txt
+*-threads.txt
+*-thread-comm.txt
+*.trace
+*.perfetto-trace
+*.mp4
+*.webm
+*.hprof

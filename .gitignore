@@ -5,3 +5,14 @@ __pycache__/
 *.binlog
 dist/
 /private/
+
+# Android/Gradle caches and locally signed artifacts; do not ignore docs/build/.
+.gradle/
+.kotlin/
+.cxx/
+.externalNativeBuild/
+local.properties
+*.apk
+*.aab
+*.jks
+*.keystore

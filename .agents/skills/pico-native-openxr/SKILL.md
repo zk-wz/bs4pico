@@ -35,4 +35,4 @@ SDK 扩展表主要覆盖 Neo3/Pico 4/4 Ultra。Space Pro 的扩展、控制器 
 - Vulkan 对象必须有清晰的设备、进程、队列与同步归属。Windows/Unix thunk 的句柄不能未经转换传给 Android loader。
 - 先证明基础立体渲染与手柄正确，再优化图像复制、注视点、分辨率和重投影；性能结果记录帧时间与持续运行条件。
 - 不伪造扩展支持、有效 tracking 或 Steam 所有权。可选扩展缺失时保留基础路径；必要能力缺失时报告具体阻塞点。
-- 真机结果写入 `docs/pico/device-validation/`，阶段状态更新 `docs/pico/plans/`，架构变化更新 `AGENTS.md`。向用户只呈现大方向、结论与必要限制。
+- 设备结果写入 `docs/device-validation/`，阶段状态更新 `docs/plans/`，架构/构建变化更新对应文档与 skill，约定变化更新 `AGENTS.md`。向用户只呈现大方向、结论与必要限制。

@@ -1,0 +1,20 @@
+{
+  "path": "prototypes/spatial-openxr/app/build/outputs/apk/debug/app-debug.apk",
+  "sha256": "8d96313d52c6e5130aa63540634e7b19fa0fc59269fc0c120ba694fb1458bb1b",
+  "bytes": 39227121,
+  "package": "io.github.zkwz.bs4pico.probe",
+  "abis": [
+    "arm64-v8a",
+    "x86_64"
+  ],
+  "native_libraries": [
+    "lib/arm64-v8a/libandroidx.graphics.path.so",
+    "lib/arm64-v8a/libc++_shared.so",
+    "lib/arm64-v8a/libopenxr_loader.so",
+    "lib/arm64-v8a/libxrprobe.so",
+    "lib/x86_64/libandroidx.graphics.path.so",
+    "lib/x86_64/libc++_shared.so",
+    "lib/x86_64/libopenxr_loader.so",
+    "lib/x86_64/libxrprobe.so"
+  ]
+}

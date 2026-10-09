@@ -1,0 +1,23 @@
+{
+  "tool_name": "emulator.stop",
+  "tool_status": "SUCCESS",
+  "summary": "Stopped the emulator.",
+  "data": {
+    "stopped": true,
+    "targetMatched": true,
+    "targetWasRunning": true,
+    "staleStateRemoved": false,
+    "matchedAvd": "Pico_Emulator_6_1",
+    "adbDeviceId": "emulator-5554",
+    "pid": 39460,
+    "runningTargets": [],
+    "usedAdbKill": true,
+    "usedPidKill": true
+  },
+  "errors": [],
+  "resources": [],
+  "meta": {
+    "format": "json",
+    "truncated": false
+  }
+}

@@ -407,7 +407,7 @@ license is in \`licenses/\`; this project's own code is MIT (\`LICENSE\`).
 | llvm-mingw $LLVM_MINGW_VERSION (toolchain; statically linked runtime parts) | https://github.com/mstorsjo/llvm-mingw/releases/tag/$LLVM_MINGW_VERSION |
 
 The changes to upstream code are the patches in \`patches/\` of the bs-arm64 tree above.
-To rebuild, run \`./build.sh\` there (see docs/BUILD.md).
+To rebuild, run \`./build.sh\` there (see docs/upstream/BUILD.md).
 EOF
 
     (cd "$stage" && find . -type f | sed 's|^\./||' | LC_ALL=C sort | xargs -d '\n' sha256sum > "$dist/SHA256SUMS.tmp")
@@ -461,7 +461,7 @@ tar xf $name.tar.gz && cd $name
 \`\`\`
 
 Without mod support: \`install --no-mods\` (engine only), or \`launch --no-mods\` to start one
-time without mods. If you (re)install BSIPA afterwards, run \`install\` again. See \`docs/INSTALL.md\` for every file it
+time without mods. If you (re)install BSIPA afterwards, run \`install\` again. See \`docs/upstream/INSTALL.md\` for every file it
 touches.
 
 ## Known issues

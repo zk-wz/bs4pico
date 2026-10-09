@@ -1,6 +1,6 @@
 # BS for Pico 的原生 XR 接入边界
 
-这是依据当前仓库提出的工程方向，**尚非已完成的 Android 实现**。进度以根 `AGENTS.md`、`docs/pico/plans/ROADMAP.md` 与真机记录为准；后续实现变化时更新本文件。
+游戏 XR 桥仍是工程方向，**尚非已完成的 Android 游戏桥实现**。2026-10-09 新增独立 `prototypes/spatial-openxr/` 单 APK，在 x86_64 PICO 模拟器验证真正 Spatial 管理窗口 ↔ C/C++ OpenXR Vulkan 双眼、持久数据、重复切换、生命周期和模拟追踪/右侧 trigger；ARM64 仅构建，未真机验证。进度以 `docs/plans/ROADMAP.md` 和 `docs/device-validation/2026-10-09-spatial-openxr/RESULT.md` 为准，根 `AGENTS.md` 只维护约定。
 
 ## 分清三段接口
 
@@ -8,7 +8,7 @@
 |---|---|
 | 游戏/Unity → Windows OpenXR | `src/unityopenxr/patch_unityopenxr.py` 调整 Windows ARM64 Unity 插件；`patches/openxr-loader/` 调整 Windows runtime 发现。确认游戏真正调用的 API、扩展、图形绑定及 Unity 版本，不假设已变成 Android Unity 项目。 |
 | Windows OpenXR → Wine/Unix 桥 | 上游 `wineopenxr` 来自锁定的依赖，Windows/Unix 两半有匹配 ABI；读取 `versions.env` 和实际源码。需处理结构链、句柄、回调、动作、时钟和 Vulkan thunk。 |
-| Android 桥 → Pico system runtime | 新增 Android 宿主、loader、生命周期与 native Vulkan 接入；原来面向 Linux SteamVR 的 Unix 部分不能直接使用。 |
+| Android 桥 → Pico system runtime | 独立原型已有 Android Activity、Khronos loader、生命周期与 native Vulkan 双眼；尚未接 Windows/Wine 图形和 ABI 桥。原来面向 Linux SteamVR 的 Unix 部分不能直接使用。 |
 
 推荐先验证 Android Native Vulkan XR 宿主，再选择与宿主共享进程/设备的桥布局以减少开销。跨进程方案若必须采用，应显式设计资源与同步协议并测延迟；无 root 不等于必须 PRoot，也不证明普通 Linux 二进制可直接运行在 Android Bionic 上。
 
@@ -26,11 +26,11 @@ XR projection 是最终双眼画面；桌面镜像属于游戏/Unity/Wine 窗口
 
 不显示桌面窗口不代表镜像 GPU 成本消失，也不代表游戏能够无窗口运行。Steam 登录与启动诊断仍需要可访问的界面，可按需展示 Android 页面或受控面板；正式游玩不必持续把桌面投到 VR 层。登录/账号交互不能因主画面隐藏而不可用。
 
-Spatial SDK 的统一渲染/窗口与 OpenXR 的自渲染 projection 是不同契约。若以后要两者共存，单独核查 OS 6 的显示模式、资源交换和焦点规则；不能把 Spatial wrapper 当成现成 Windows XR adapter。
+Spatial SDK 的统一渲染/窗口与 OpenXR 自渲染 projection 是不同契约。本次两 Activity 配置在模拟器可切换，官方未保证此组合；PICO 可分配不同任务，必须显式保证单场景所有权，并等待旧 immersive Activity 的销毁事务后再次进入 VR。管理容器关闭不等于 application 级 SDK 卸载或零后台开销；真实显示模式、焦点与资源成本仍需 Space Pro 复核，不能把 Spatial wrapper 当成 Windows XR adapter。
 
 ## 不属于 OpenXR 的其他阻塞项
 
-Windows ARM64 Player/Mono、Wine 的 Android 适配、DXVK Vulkan backend、原生插件、资源存储、音频和 Steam 真实客户端服务需分别推进。本 skill 不提供 Steam 授权替代物；沿用 `docs/LEGAL.md` 与实际账号/DLC 所有权要求。
+Windows ARM64 Player/Mono、Wine 的 Android 适配、DXVK Vulkan backend、原生插件、资源存储、音频和 Steam 真实客户端服务需分别推进。本 skill 不提供 Steam 授权替代物；沿用 `docs/upstream/LEGAL.md` 与实际账号/DLC 所有权要求。
 
 GameNative 的 x64 路径可作为诊断参考，但不证明本项目 Windows ARM64 组件链已经可用。上游 Steam Frame benchmark 不能用于承诺 Space Pro FPS。
 

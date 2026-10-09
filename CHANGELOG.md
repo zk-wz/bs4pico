@@ -2,6 +2,23 @@
 
 All notable changes to bs-arm64. Each release is built for one Proton build (see its release notes).
 
+## BS for Pico development – 2026-10-09
+
+### Added
+- Standalone dual-ABI Spatial/Native OpenXR switching APK, private-data exchange,
+  lifecycle logging and emulator regression driver. x86_64 emulator results are
+  recorded separately from pending ARM64 hardware and game integration.
+- Reusable WSL/Windows interop skill and configuration-driven command, path and
+  exact-window capture helpers; prototype commands are thin adapters.
+
+### Changed
+- Project conventions remain in `AGENTS.md`; machine paths and experimental
+  history live in `docs/device-validation/`.
+- Promote the former Pico document categories to `docs/`, archive bs-arm64
+  references in `docs/upstream/`, and migrate consumers without old-path aliases.
+- Ignore local tool configuration, Android/Kotlin caches and raw validation
+  media while retaining result, metadata and checksum records.
+
 ## [0.3.0] – 2026-10-04
 
 ### Added
@@ -44,7 +61,7 @@ All notable changes to bs-arm64. Each release is built for one Proton build (see
 - The Wine C++ exception-handling reproducer (`tools/repro/cxx-eh`); it is attached to the Wine bug.
 
 ### Docs
-- [UPSTREAM.md](docs/UPSTREAM.md): the Wine and MonoMod bugs are fixed upstream; what we carry until
+- [UPSTREAM.md](docs/upstream/UPSTREAM.md): the Wine and MonoMod bugs are fixed upstream; what we carry until
   Proton and BSIPA pick the fixes up.
 
 ## [0.2.1] – 2026-09-30
@@ -64,7 +81,7 @@ All notable changes to bs-arm64. Each release is built for one Proton build (see
 
 ### Docs
 - What trips up a first install on a fresh Frame, and a list of upstream bugs we work around
-  ([UPSTREAM.md](docs/UPSTREAM.md)), including why Valve's layer hangs games started outside Steam.
+  ([UPSTREAM.md](docs/upstream/UPSTREAM.md)), including why Valve's layer hangs games started outside Steam.
 - AssetBundleLoadingTools' multi-pass mode draws everything twice; check it when copying `UserData`
   from Windows.
 
@@ -79,7 +96,7 @@ All notable changes to bs-arm64. Each release is built for one Proton build (see
   GPU time 4.2 → 3.6 ms per frame and system power 15.6 → 14.3 W compared to the fixed profile
   (4.8 ms / 16.7 W without foveated rendering; 2160, 120 Hz).
 - `BS_ARM64_FDM_GAZE_*` variables for the sharp radius and the gaze correction, plus a debug
-  crosshair (`BS_ARM64_FDM_GAZE_CROSSHAIR=1`), see [ARCHITECTURE.md](docs/ARCHITECTURE.md#graphics-dxvk).
+  crosshair (`BS_ARM64_FDM_GAZE_CROSSHAIR=1`), see [ARCHITECTURE.md](docs/upstream/ARCHITECTURE.md#graphics-dxvk).
 
 ## [0.1.7] – 2026-09-27
 
@@ -93,7 +110,7 @@ All notable changes to bs-arm64. Each release is built for one Proton build (see
 - Optional fixed foveated rendering for the Frame's GPU: start the game with `BS_ARM64_FDM=1` and DXVK
   renders the edges of each eye at lower resolution. GPU time 4.8 → 4.2 ms per frame, system power
   16.7 → 15.4 W (2160, 120 Hz, MSAA on). Radius and densities are set with `BS_ARM64_FDM_*`
-  variables, see [ARCHITECTURE.md](docs/ARCHITECTURE.md#graphics-dxvk). Off by default.
+  variables, see [ARCHITECTURE.md](docs/upstream/ARCHITECTURE.md#graphics-dxvk). Off by default.
 
 ### Changed
 - README: turn off Screen Distortion (expensive on the Frame's GPU), and where the Adaptive SFX

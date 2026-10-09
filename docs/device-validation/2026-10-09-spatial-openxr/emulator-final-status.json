@@ -1,0 +1,17 @@
+{
+  "tool_name": "emulator.status",
+  "tool_status": "PARTIAL",
+  "summary": "No running emulator process or online adb target was detected.",
+  "data": {
+    "processRunning": false,
+    "adbOnline": false,
+    "candidates": []
+  },
+  "errors": [],
+  "resources": [],
+  "meta": {
+    "format": "json",
+    "truncated": false,
+    "candidateCount": 0
+  }
+}

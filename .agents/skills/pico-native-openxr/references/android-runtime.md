@@ -46,6 +46,6 @@ Android Activity/Surface 生命周期与 OpenXR session 状态分别处理。`xr
 
 Android CLI 可辅助工具链与项目操作；Pico CLI 可安装 APK、启动应用、收集日志；它们不替代上述编译器。官方 quickstart 使用 Android Studio 展示操作，并不意味着 Gradle 工程必须依赖 IDE。来源：[Android CLI 构建](https://developer.android.com/build/building-cmdline)、[NDK CMake](https://developer.android.com/ndk/guides/cmake)。
 
-沿用项目 WSL 缓存策略：源码与 `.gradle`/build、SDK/NDK、Gradle user home、CMake 中间文件及 shader 缓存留在 Linux 文件系统。Windows Pico CLI 只消费 APK/日志时无需调用 Windows Gradle；其自身状态、ADB 状态与临时文件另计，不能承诺零 Windows 写入。具体环境现状见 `docs/pico/build/README.md`，不要在调研任务中顺手安装或迁移环境。
+沿用项目 WSL 缓存策略：源码与 `.gradle`/build、SDK/NDK、Gradle user home、CMake 中间文件及 shader 缓存留在 Linux 文件系统。Windows Pico CLI 只消费 APK/日志时无需调用 Windows Gradle；其自身状态、ADB 状态与临时文件另计，不能承诺零 Windows 写入。构建方式见 `docs/build/README.md`，具体环境证据见 `docs/device-validation/WINDOWS_EMULATOR_VALIDATION.md`，不要在调研任务中顺手安装或迁移环境。
 
 首个可验证目标：安装一个最小 Native Vulkan XR APK，枚举 runtime/扩展并显示立体画面；随后验证手柄、生命周期，再接游戏。模拟器有助于打包/启动验证，不能证明 Space Pro GPU 和追踪性能。
