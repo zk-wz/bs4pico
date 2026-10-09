@@ -1,6 +1,6 @@
 # BS for Pico 项目说明
 
-最后更新：2026-10-07。
+最后更新：2026-10-09。
 
 **这是持续维护的项目入口。随着源码、目录、构建方式和验证结果发生变化，必须随时更新本文及对应文档；完成相关变更时一并更新，不要等到阶段结束。**
 
@@ -10,6 +10,7 @@
 - 上游通过替换同版本的 Windows ARM64 Unity Player、Mono 和原生插件，保留游戏的托管程序集及数据。结果仍是 Windows ARM64 应用，需要 Windows 兼容层。
 - 当前源码和安装器仍面向 ARM64 Linux 上的 Proton、Steam 客户端及 SteamVR/OpenXR。上游 Steam Frame 的验证和性能数据不能当成 Pico 的验证结果。
 - 目前没有 Android Gradle 工程、安卓运行时移植、Pico OpenXR 桥或可安装的 Pico APK；尚未执行本 Fork 的构建和真机验证。
+- 2026-10-09 已由用户安装并启动 Windows 大陆版 PICO 模拟器 6.1.0；采用 Pico CLI 0.6.0 直接下载官方包的路径，未调用 Primer 自动补装 Java/完整 Android SDK。本会话核查日志确认启动完成、ADB 在线。模拟器是 x86_64，此结果仅验证主机模拟器环境，详见 `docs/pico/build/WINDOWS_EMULATOR_VALIDATION.md`。
 - 用户另一个会话已验证 GameNative 运行 PC 版的路径；那不证明本仓库的纯 ARM64 路径已经在 Pico 跑通。
 - 原 `.github/` 已移除，当前没有 GitHub Actions。后续自己的 CI 应复用本地构建入口。
 - 迁移方向：安卓适配的 Wine/Proton 组件 + DXVK + Native OpenXR；Spatial 显示作为后续实验候选。真实 Steam 登录、游戏及 DLC 授权仍需接入和验证。
@@ -18,6 +19,7 @@
 
 - 构建计划在 WSL 完成。Android CLI 辅助开发；Gradle、NDK 和 LLVM-MinGW 分别承担 APK、安卓原生组件和 Windows ARM64 DLL 的构建。
 - 源码、SDK/NDK、Gradle 缓存和编译中间产物优先留在 WSL 的 Linux 文件系统。Windows Pico CLI 可负责设备操作；它自己的状态和缓存需要另行管理。
+- 当前组件构建不需要完整游戏文件或主机 .NET SDK；游戏内部的 Unity ARM64 Mono 与 WSL 的开发工具是不同层。分析托管程序集、改装游戏实例及实际运行时，需要用户的正版 Windows 游戏文件，作为仓库外的私有输入保存；不要提交游戏文件、账号凭据或授权票据。后续需要编译自有 C# 工具/模组时再按需添加 .NET SDK。
 - WSL 项目建议路径为 `/home/zkwz/projects/bs4pico`，目前仍在 Windows，**尚未迁移**。用户表示将后续自行操作；本文的路径规划不是已执行的配置。
 - 不引入依赖设备 root 或 PRoot 的主运行方案。游戏、运行时和原生模块的架构需分别确认，不能把 Windows ARM64、ARM64EC、Android ARM64 库混为一谈。
 - Steam 兼容桥负责转接真实服务，不提供独立授权。保留真实账号及所有权校验；打包范围参考 `docs/LEGAL.md`。

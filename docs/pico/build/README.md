@@ -1,11 +1,11 @@
 # 构建环境与缓存方案
 
-最后更新：2026-10-07。本页为规划，尚未安装依赖、设置环境变量、迁移项目或执行构建。现有 `build.sh` 只构建上游 Windows ARM64 组件和发布包。
+最后更新：2026-10-09。项目构建与 WSL 迁移仍为规划，尚未执行本项目构建。用户已安装并启动 Windows PICO 模拟器，实测结果见 [Windows 模拟器验证](WINDOWS_EMULATOR_VALIDATION.md)。现有 `build.sh` 只构建上游 Windows ARM64 组件和发布包。
 
 ## 分工
 
 - WSL：Android CLI、Gradle Wrapper、JDK、Android SDK/NDK、LLVM-MinGW，以及各组件需要的 CMake/Ninja、Make/Meson 等工具。
-- Windows：现有 Pico CLI/ADB 用于真机操作。将来通过我们的调度脚本调用 `wsl.exe` 构建，再安装 WSL 输出的 APK；不默认让 Windows 工作流直接运行 `gradlew.bat`。
+- Windows：现有 Pico CLI/模拟器包内 ADB 用于模拟器及真机操作。将来通过我们的调度脚本调用 `wsl.exe` 构建，再安装 WSL 输出的 APK；不默认让 Windows 工作流直接运行 `gradlew.bat`。
 - 若连 Pico CLI 的状态/下载缓存也要保留在 WSL，优先改用 Linux 版 Pico CLI；需要 Windows 工具的操作单独处理。不能承诺任意 Windows 程序零写入。
 
 ## 已知安装（只表示曾定位到，不代表完整环境检查通过）
@@ -16,8 +16,17 @@
 | Android CLI | `/home/zkwz/.local/bin/android`，1.0.16486076 |
 | Android SDK | `/home/zkwz/Android/Sdk`，已发现 NDK 和 platform/build-tools 组件 |
 | Windows Pico CLI | 0.6.0，npm 安装在 `D:/Cache/npm/npm/` 下 |
+| Windows PICO 模拟器 | 大陆正式版 6.1.0，位于 `D:/SDK/PICO/6.1/emulator/`；首次启动及 ADB 在线已验证 |
 
 Android CLI 曾在版本查询时自动解包内置安装文件。后续检查工具启动副作用，不将帮助/版本命令一概视为零文件写入。未运行其更新、初始化或 SDK 安装命令。
+
+## 游戏文件与 .NET
+
+- 迁移源码、编译现有兼容组件和开发 Android 外壳，不以完整游戏安装为前置条件。分析真实游戏程序集、生成改装实例和实际运行时，需要用户通过 Steam 或已授权的管理工具取得的完整 Windows 安装目录；普通 Windows x64 原版即可作为输入，后续按引擎版本匹配并替换 ARM64 Player、Mono 和原生插件。
+- 保留一份未修改、无模组的游戏副本，不直接改唯一的 Steam 安装。将完整目录作为仓库外私有输入保存，例如未来的 `/home/zkwz/projects/bs4pico-artifacts/games/BeatSaber/<version>/`；该位置只是建议，尚未创建或迁移。不要将游戏文件、Steam 凭据或授权票据提交 Git。
+- 当前 `versions.env` 的引擎锁定为 Unity `6000.0.40f1`，上游列出的游戏版本为 `1.40.9` 至 `1.44.1` 中的指定版本。以实际引擎检查为准，不默认任意最新游戏版本都兼容。这是上游输入要求，不代表 Pico 已支持这些版本。
+- WSL 暂不需要安装 .NET SDK 或主机 Mono。当前构建使用 C/C++ 工具链与 Python；`build.sh monomod` 从固定的 NuGet 包提取已编译 DLL，不执行 `dotnet build`。游戏内嵌的 Unity ARM64 Mono 是运行时移植输入，不等于 WSL 主机 .NET 安装。
+- 将来编写并编译自有 C# 工具或模组时，再根据其项目目标安装 .NET SDK；Android APK 的 JDK/Gradle/NDK 需求另行管理。
 
 ## 建议的 WSL 路径
 
