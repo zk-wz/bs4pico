@@ -1,6 +1,6 @@
 # Windows PICO 模拟器验证
 
-日期：2026-10-09（Asia/Shanghai）。操作由用户执行，本会话只核查日志、文件与 CLI 状态记录。后续环境或验证结果变化时更新本文。
+日期：2026-10-09（Asia/Shanghai）。首次安装启动由用户执行，本会话核查日志、文件与 CLI 状态；本文末尾的 WSL 调用测试由本会话实际执行。后续环境或验证结果变化时更新本文。
 
 ## 结果与边界
 
@@ -53,3 +53,45 @@
 - Vulkan 调试接口：<https://docs.vulkan.org/refpages/latest/refpages/source/vkCreateDebugUtilsMessengerEXT.html>
 - Android 上游 ADB 路径查找：<https://android.googlesource.com/platform/external/qemu/+/emu-master-dev/android/emu/adb/interface/src/android/emulation/control/adb/AdbInterface.cpp>
 - 微软状态码定义：<https://github.com/microsoft/win32metadata/blob/main/generation/WinSDK/RecompiledIdlHeaders/shared/ntstatus.h>
+
+## WSL 调用 Windows Pico CLI 验证
+
+2026-10-09 实测通过。WSL 目标为 `archlinux`、用户 `zkwz`、工作目录 `/home/zkwz/projects/bs4pico`。只启动和关闭现有模拟器，没有安装或更新工具、创建 AVD、清除数据，也没有修改环境互通配置。
+
+`/etc/wsl.conf` 中 `[interop]` 为 `enabled=true`、`appendWindowsPath=false`。关闭 Windows PATH 自动追加不会禁用通过绝对路径启动 Windows EXE；不要将本次结果外推到 `enabled=false` 的环境。
+
+| 工具 | 已核实的 Windows 路径 |
+|---|---|
+| Pico CLI npm shim | `D:\Cache\npm\npm\pico-cli.cmd`，另有同目录 `pico-cli.ps1`；cmd shim 在没有相邻 node.exe 时依赖 Windows PATH，故本次不使用它。 |
+| Pico CLI 实际入口 | `D:\Cache\npm\npm\node_modules\@picoxr\pico-cli\dist\index.js`，0.6.0 |
+| Windows Node | `D:\WorkTools\Development\NodeJs\node.exe`，本次版本输出为 v24.12.0 |
+| Windows PowerShell | `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe` |
+| 模拟器 | `D:\SDK\PICO\6.1\emulator\emulator.exe` |
+| 包内 ADB | `D:\SDK\PICO\6.1\emulator\system-images\platform-tools\adb.exe` |
+
+以下是从 WSL Bash 调用的已验证启动命令。PowerShell 单引号内容不会被 Bash 展开；命令只为该 Windows 子进程指定 PICO_HOME，并切换到 Windows 目录。
+
+```bash
+/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe \
+  -NoLogo -NoProfile -NonInteractive -Command '
+    $env:PICO_HOME="D:\SDK\PICO"
+    Set-Location -LiteralPath "D:\SDK\PICO"
+    & "D:\WorkTools\Development\NodeJs\node.exe" "D:\Cache\npm\npm\node_modules\@picoxr\pico-cli\dist\index.js" emulator start --avd Pico_Emulator_6_1 --emulator-path "D:\SDK\PICO\6.1\emulator\emulator.exe" --source cn --format json
+    exit $LASTEXITCODE
+  '
+```
+
+本次实际启动另外传入 `--log-file`，写入 Windows 副本下已被 Git 忽略的 `private/validation/wsl-windows-emulator-2026-10-09.log`。上面的命令省略这一可选日志路径，避免 WSL Agent 依赖仍存在的 Windows 源码副本；需要日志时明确选择 Windows 可写位置。
+
+同一 PowerShell 前缀下，把 Node/CLI 的子命令替换为 `emulator status --format json` 或 `emulator stop --format json`，均已独立实测成功。也已通过上述包内 ADB 读取 `-s emulator-5554 shell getprop sys.boot_completed` 与 `ro.product.cpu.abi`。
+
+证据与结果：
+
+- 测试前 `emulator status` 为 PARTIAL，没有运行中的模拟器。
+- `emulator start` 为 SUCCESS；复用 `Pico_Emulator_6_1`，`createdNewAvd=false`，模拟器 PID 41868，版本 6.1.0，`bootCompleted=true`、`startupStatus=ready`、`adbStatus=online`。
+- 随后另一次 WSL 调用 `emulator status` 为 SUCCESS，进程仍运行、ADB 在线；独立 ADB 返回启动完成值 `1` 和 ABI `x86_64`。
+- `emulator stop` 为 SUCCESS，匹配本次 PID/AVD 后关闭模拟器。测试结束时恢复未运行状态，不删除 AVD。
+
+**启动会话注意事项**：本次 CLI 打印成功 JSON 后，启动调用仍保持前台，直到模拟器停止才退出，退出码为 0。Agent 应保留启动会话，并从独立调用查询状态和调试；不能以启动命令尚未退出判断失败，也不要用很短的宿主超时终止启动会话。后续如需后台调度，应单独验证受控的 Windows 启动方式。
+
+本次证明跨端启动、状态查询和 ADB shell 可用；尚未证明 APK 安装的 Linux/Windows 路径交接、自动 UI 操作或模拟器 OpenXR 能力。模拟器仍不是 ARM64 真机性能验证环境。

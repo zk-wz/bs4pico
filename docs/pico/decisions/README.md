@@ -1,6 +1,8 @@
 # 技术决策
 
-当前工作方向为 Wine/Proton 组件的安卓适配、DXVK 和 Native OpenXR，构建放在 WSL。Spatial SDK 保留为实验候选，尚未证明它显示当前 PC 游戏更快。
+当前工作方向为 Wine/Proton 组件的安卓适配、DXVK 和 Native OpenXR，构建放在 WSL。同一 APK 内拟用 Spatial SDK 提供管理界面、Native OpenXR 提供游戏 VR 渲染；不把游戏画面绕经 Spatial 二次渲染。Activity 切换及资源释放尚未验证，配置完用户的 Pico CLI 后再编写原型。若切换能力或后台开销不满足要求，重新评估管理界面的实现。
+
+分发建议为宿主 APK 加用户正版游戏导入，后续再评估真实 Steam 登录下载。二者最终使用同一应用私有目录；下载成功不代表运行时 Steam 初始化和授权验证已经解决。
 
 重要选择另建 `YYYY-MM-DD-主题.md`，简短记录：问题、候选方案、当前选择、依据、仍未验证的假设、重新评估条件，以及相关实验链接。状态可为“建议”“采用”“替代”。
 

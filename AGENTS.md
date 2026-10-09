@@ -13,14 +13,19 @@
 - 2026-10-09 已由用户安装并启动 Windows 大陆版 PICO 模拟器 6.1.0；采用 Pico CLI 0.6.0 直接下载官方包的路径，未调用 Primer 自动补装 Java/完整 Android SDK。本会话核查日志确认启动完成、ADB 在线。模拟器是 x86_64，此结果仅验证主机模拟器环境，详见 `docs/pico/build/WINDOWS_EMULATOR_VALIDATION.md`。
 - 用户另一个会话已验证 GameNative 运行 PC 版的路径；那不证明本仓库的纯 ARM64 路径已经在 Pico 跑通。
 - 原 `.github/` 已移除，当前没有 GitHub Actions。后续自己的 CI 应复用本地构建入口。
-- 迁移方向：安卓适配的 Wine/Proton 组件 + DXVK + Native OpenXR；Spatial 显示作为后续实验候选。真实 Steam 登录、游戏及 DLC 授权仍需接入和验证。
+- 迁移方向：同一 APK 内用 Spatial SDK 提供游戏、谱面及模组管理界面，用 Native OpenXR 承担游戏 VR 渲染；游戏侧仍需安卓适配的 Wine/Proton 组件及 DXVK。Spatial Activity 与 Native OpenXR Activity 的切换尚未验证；用户已将验证原型的开发交给 WSL 中的 Agent，本 Windows 会话尚未编写原型。真实 Steam 登录、游戏及 DLC 授权仍需接入和验证。
 
 ## 开发与验证约定
 
-- 构建计划在 WSL 完成。Android CLI 辅助开发；Gradle、NDK 和 LLVM-MinGW 分别承担 APK、安卓原生组件和 Windows ARM64 DLL 的构建。
+- 开发与构建由 WSL 中的 oh my pi 承担，Android CLI 和 Android SDK/NDK 已在 WSL；Gradle、NDK 和 LLVM-MinGW 分别承担 APK、安卓原生组件和 Windows ARM64 DLL 的构建。各层工具是否齐全仍需按实际任务检查，不能把知识库就绪等同于完整构建环境通过。
+- Windows 保留 Pico CLI 和 PICO 模拟器；WSL 另有 Pico CLI 为 Agent 插件及知识库提供服务。使用 Windows 工具管理模拟器、安装和调试 WSL 构建的 APK；Android 构建及其缓存留在 WSL，不默认在 Windows 补装 JDK、Gradle 或完整 Android SDK。
+- Windows Pico CLI 的 npm 入口是 `D:\Cache\npm\npm\pico-cli.cmd`（另有 `pico-cli.ps1`）；实际 CLI 文件是 `D:\Cache\npm\npm\node_modules\@picoxr\pico-cli\dist\index.js`，Windows Node 是 `D:\WorkTools\Development\NodeJs\node.exe`。WSL 已关闭 Windows PATH 自动追加（`appendWindowsPath=false`），但程序互通仍开启（`enabled=true`）；不得为了调用工具重新开启 PATH 或环境共享。
+- 2026-10-09 本会话已从 `archlinux` / `zkwz` 的 WSL 工作目录实测：经 `/mnt/c/Windows/System32/WindowsPowerShell/v1.0/powershell.exe` 显式调用上述 Windows Node/CLI，在该 Windows 子进程设置 `PICO_HOME=D:\SDK\PICO`，成功启动、查询和停止现有 `Pico_Emulator_6_1`。独立 ADB 确认 `emulator-5554` 在线、`sys.boot_completed=1`、ABI 为 `x86_64`。Windows 包内 ADB 路径为 `D:\SDK\PICO\6.1\emulator\system-images\platform-tools\adb.exe`。确切调用方式及启动会话注意事项见 `docs/pico/build/WINDOWS_EMULATOR_VALIDATION.md` 的 WSL 调用验证；APK 安装及自动 UI 操作尚未验证。
 - 源码、SDK/NDK、Gradle 缓存和编译中间产物优先留在 WSL 的 Linux 文件系统。Windows Pico CLI 可负责设备操作；它自己的状态和缓存需要另行管理。
-- 当前组件构建不需要完整游戏文件或主机 .NET SDK；游戏内部的 Unity ARM64 Mono 与 WSL 的开发工具是不同层。分析托管程序集、改装游戏实例及实际运行时，需要用户的正版 Windows 游戏文件，作为仓库外的私有输入保存；不要提交游戏文件、账号凭据或授权票据。后续需要编译自有 C# 工具/模组时再按需添加 .NET SDK。
-- WSL 项目建议路径为 `/home/zkwz/projects/bs4pico`，目前仍在 Windows，**尚未迁移**。用户表示将后续自行操作；本文的路径规划不是已执行的配置。
+- 当前组件构建不需要完整游戏文件或主机 .NET SDK；游戏内部的 Unity ARM64 Mono 与 WSL 的开发工具是不同层。分析托管程序集、改装游戏实例及实际运行时，需要用户的正版 Windows 游戏文件，可保存在已忽略的 `private/games/BeatSaber/<version>/`，也可保存在仓库外；不要提交游戏文件、账号凭据或授权票据。后续需要编译自有 C# 工具/模组时再按需添加 .NET SDK。
+- 交付建议：一个宿主 APK，首次使用导入用户自己的正版游戏文件到应用私有目录，后续再评估真实 Steam 登录下载。游戏资源与 APK 独立更新；APK 只包含自有代码及允许再分发的组件。下载认证不替代游戏运行时的 Steam 服务接入和授权验证。
+- 用户提供的 WSL Agent 诊断已确认其工作目录为 `/home/zkwz/projects/bs4pico`。本会话仍访问 Windows 副本，不能假设两个 checkout 自动同步；后续 Agent 必须核对各自的 Git 状态及项目文档。
+- WSL Pico CLI 0.6.0、Graphify Vault 0.5.9 及 General/Spatial 插件已由用户配置。知识库全局配置在 `/home/zkwz/.pico/.pico-env.json`，PICO_HOME 为 `/home/zkwz/pico/toolbox`，Spatial workspace 为 `6.1/agent-vault/spatial`。实际 MCP 查询已有成功证据；用户随后报告查询超时问题已解决，具体修复方法尚未记录。
 - 不引入依赖设备 root 或 PRoot 的主运行方案。游戏、运行时和原生模块的架构需分别确认，不能把 Windows ARM64、ARM64EC、Android ARM64 库混为一谈。
 - Steam 兼容桥负责转接真实服务，不提供独立授权。保留真实账号及所有权校验；打包范围参考 `docs/LEGAL.md`。
 - 先验证原版游戏，再扩展模组。性能以真机帧时间、输入延迟、音画同步和持续运行表现为依据，不只看平均 FPS。
@@ -47,6 +52,7 @@
 | `obj/` | 编译中间产物；忽略的生成目录。 |
 | `out/` | 上游构建输出 DLL 和辅助脚本；忽略的生成目录。 |
 | `dist/` | 上游发布包、清单和校验文件；忽略的生成目录。 |
+| `private/` | 可选的本地正版游戏输入等私有资料；整个目录已忽略，不提交或公开发布。 |
 
 生成目录可能尚不存在。新增 Android 工程等代码目录时，应及时补充本文，不预先把计划目录写成已有实现。
 
