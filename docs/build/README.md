@@ -21,10 +21,20 @@ APK="$(python3 .agents/skills/wsl-windows-interop/scripts/windows_interop.py pat
 ./prototypes/spatial-openxr/windows-tools.sh pico app launch io.github.zkwz.bs4pico.probe \
   --activity .platform.LaunchActivity --device emulator-5554
 ./prototypes/spatial-openxr/verify-emulator.py \
-  --out private/validation/spatial-openxr-smoke --cycles 5
+  --device emulator-5554 --out private/validation/spatial-openxr-smoke --cycles 1
 ```
 
-前提是按 Windows 记录启动现有模拟器；验证脚本会停止/重启本调试应用，不删除其私有数据。复现使用新的 `--out` 目录，避免覆盖已记录实验及其校验值。直接 Native 对照入口为 `.platform.VrActivity`，可用 `windows-tools.sh adb -s emulator-5554 shell am start -n io.github.zkwz.bs4pico.probe/.platform.VrActivity --ez direct true`。不需要额外安装测试框架或 Linux ADB 网络转发。
+前提是按 Windows 记录启动现有模拟器；`--device` 必填，脚本不启动模拟器，并在任何 force-stop 前核实目标在线。脚本会停止/重启本调试应用，不删除其私有数据。自动场景/prepare 的 `--out` 必须全新，已存在立即拒绝；check 只消费合法 checkpoint 一次，不覆盖、重试或自动清理失败现场。直接 Native 对照入口为 `.platform.VrActivity`，可用 `windows-tools.sh adb -s emulator-5554 shell am start -n io.github.zkwz.bs4pico.probe/.platform.VrActivity --ez direct true`。不需要额外测试框架或 Linux ADB 网络转发。
+
+原生事件以 `BS4PicoXR` 为规范来源，关联 PID、Activity、epoch、worker、session 与逐 worker seq；不要把转发到 `BS4PicoProbe` 的 XR status 双计。`ProbeData.read` 记录新进程首次读取的三个原有字段，debug 管理入口支持 `probe_action=finish` 正常关闭窗口；身份/退出实跑见 [E1 记录](../device-validation/2026-10-10-emulator-host-xr-e1/RESULT.md)。现有模拟器操作的预检门槛见根 [AGENTS.md](../../AGENTS.md)，不因 Windows Primer 构建诊断失败重复安装工具链。
+
+E1 场景选择：`--scenario baseline`（默认，`--cycles` 默认1，保留必要的重建/暂停恢复边界）、`stress`（显式专项入口，默认30）、`recovery`、`home-cancel`、`home-confirm`、`input`、`cost`。本轮按用户要求仅基础验收，不执行 stress 或重复 cost；专项入口存在不代表通过。`--cycles` 仅 baseline/stress 接受正整数；Home/input 必须 `--phase prepare|check`。prepare 结束后由用户在精确窗口完成空间交互，再以同 device/out/scenario 执行 check；反馈本身不替代 focus/action/Surface/session 的实际证据。check 校验安装 base.apk 的 SHA256，保存独立 check 目录；跨进程恢复对比首次 private read。非法参数/checkpoint 在设备动作前拒绝。
+
+input 的基础输入判据是实际低→高→低、变化标志和递增的 lastChangeTime；hold_ns保留实测值，不增加“XR时钟必须量到五秒”的精度验收。人工按住只是获取清晰样本，不重复操作或把用户操作时长等同模拟器时钟。
+
+cost 默认 `--warmup-seconds 10 --sample-seconds 15 --repeats 3`，仅此场景接受这些正数参数；固定 direct1→spatial1→direct2→spatial2→direct3→spatial3。先人工确认窗口/pose/主机负载条件；stat/status 分别采集，CLK_TCK/PAGESIZE 仅采用实际 getconf。PID变化/不可读保留无效样本，不覆盖重采。FRAME_SAMPLE 的 wait/input/image/fence/end/total 是 CPU/等待墙钟，不是 GPU 时间或显示 FPS。直接 Native 仍初始化 SpatialApplication。
+
+每条命令的 JSON 以 `stdout`/`stderr` 的相对 path/bytes 引用原始字节文件，避免重复保存大型快照；有限 all-buffer 快照、Activity/容器身份和逐 worker seq 共同验收。`capture-emulator.py` 按根授权默认临时恢复/前台截图，PrintWindow 后即释放，用户切走不抢回；交还焦点失败则最小化目标兜底，实际 `foregroundAtCapture` 和释放结果进入元数据。`--background` 仅用于对比；焦点元数据不等于视觉通过。新实现/运行矩阵及未覆盖项见 E1 实验；本轮仅验收用户指定的基础范围，不要求完整压测矩阵。
 
 输出 APK 是本地 debug 签名验证包；不包含游戏、账号或第三方运行时。Wrapper/dependency 首次构建会下载自身锁定输入到 WSL 正常缓存，不代表新增系统工具。
 

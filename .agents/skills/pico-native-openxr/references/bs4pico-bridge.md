@@ -1,6 +1,12 @@
 # BS for Pico 的原生 XR 接入边界
 
-游戏 XR 桥仍是工程方向，**尚非已完成的 Android 游戏桥实现**。2026-10-09 新增独立 `prototypes/spatial-openxr/` 单 APK，在 x86_64 PICO 模拟器验证真正 Spatial 管理窗口 ↔ C/C++ OpenXR Vulkan 双眼、持久数据、重复切换、生命周期和模拟追踪/右侧 trigger；ARM64 仅构建，未真机验证。当前状态统一见 `docs/STATUS.md`，阶段目标与模拟器前期计划见 `docs/plans/ROADMAP.md`，运行证据见 `docs/device-validation/2026-10-09-spatial-openxr/RESULT.md`；根 `AGENTS.md` 只维护约定。
+游戏 XR 桥仍是工程方向，**尚非已完成的 Android 游戏桥实现**。2026-10-09 新增独立 `prototypes/spatial-openxr/` 单 APK，在 x86_64 PICO 客体验证真正 Spatial 管理窗口 ↔ C/C++ OpenXR Vulkan 双眼、持久数据、切换、生命周期和模拟追踪/右 trigger；未真机验证。2026-10-10 当前安装应用主 ABI 为 arm64-v8a，系统配置 ARM64→x86_64/libhoudini 兼容路径，不能因 guest CPU=x86_64 假设应用加载 x86_64 库，也不能升格原生 ARM64 或 Windows ABI 结论。当前状态见 `docs/STATUS.md`，阶段目标见 `docs/plans/ROADMAP.md`，实际 ABI/身份及证据见本轮 E1 记录；根 `AGENTS.md` 只维护约定。
+
+E1 本轮结果见 `docs/device-validation/2026-10-10-emulator-host-xr-e1/RESULT.md`；按用户最新范围只做轻量基础验收，默认 baseline 一轮，不自行加压测或重复成本对比。规范原生日志只读取 `BS4PicoXR` 的 PID/Activity/epoch/worker/session/seq，不双计 Java 转发；数据恢复比较新进程首次 `private read` 和上次提交快照，不比较之后合法写入的最终值。现有模拟器操作按根 `AGENTS.md` 的实际运行能力门槛，不把 Windows 构建 doctor 作为设备操作前提。
+
+原型的 FRAME/HAND/HEAD/EYE_SAMPLE 以同帧预测时间关联，采样包括焦点/profile 变化；失焦清空当前手有效性。haptic 仅显式 DEBUG input 配置预检，每 worker/侧一次 apply 后立即 stop；精确 XR_SUCCESS 才是 API 成功，不是物理振动。reference-space-change 不累积校准变换，真实事件与 crossing 样本才能证明重定位；未覆盖保持未覆盖。E1 runner 的 checkpoint、身份/seq 与 CLI 用法复用构建说明，不新增第二套编排。
+
+启动扩展诊断只记录可用/启用数量及实际启用项，不为每次 session 逐个刷全量可用扩展；必需扩展存在检查不变。规范序列缺口仍是采证失败，不跳过、不推断为 XR 崩溃；日志缓冲丢失旧区间时不得拼补存活图，先另行观察正常释放再建立新场景。
 
 ## 分清三段接口
 
@@ -32,7 +38,7 @@ Spatial SDK 的统一渲染/窗口与 OpenXR 自渲染 projection 是不同契�
 
 Windows ARM64 Player/Mono、Wine 的 Android 适配、DXVK Vulkan backend、原生插件、资源存储、音频和 Steam 真实客户端服务需分别推进。本 skill 不提供 Steam 授权替代物；沿用 `docs/upstream/LEGAL.md` 与实际账号/DLC 所有权要求。
 
-GameNative 的 x64 路径可作为诊断参考，但不证明本项目 Windows ARM64 组件链已经可用。E1–E4 只规划模拟器宿主、Windows 运行环境、真实 Steam 和图形桥探针，尚未实现或执行；x86_64 诊断与任何 ARM 翻译结果不得升级为纯 ARM64 或真机通过。候选运行时/真实服务缺少可用 ABI 时保留阻塞，不假定 APK 的 ARM ABI 列表能解决任意子进程、PE/JIT 和 Vulkan thunk。上游 Steam Frame benchmark 不能用于承诺 Space Pro FPS。
+GameNative 的 x64 路径可作为诊断参考，但不证明本项目 Windows ARM64 组件链已经可用。E1–E4 只覆盖模拟器宿主、Windows 运行环境、真实 Steam 和图形桥探针；执行状态与未覆盖项以 `docs/STATUS.md` 及独立实验矩阵为准。x86_64 诊断与任何 ARM 翻译结果不得升级为纯 ARM64 或真机通过。候选运行时/真实服务缺少可用 ABI 时保留阻塞，不假定 APK 的 ARM ABI 列表能解决任意子进程、PE/JIT 和 Vulkan thunk。上游 Steam Frame benchmark 不能用于承诺 Space Pro FPS。
 
 ## 建议的验证分段
 
