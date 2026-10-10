@@ -1,6 +1,7 @@
 package io.github.zkwz.bs4pico.probe
 
 import android.content.Context
+import android.os.Process
 import android.util.AtomicFile
 import android.util.Log
 import java.io.File
@@ -12,7 +13,9 @@ object ProbeData {
     fun read(context: Context): String {
         val target = file(context)
         if (!target.exists()) write(context, 0, 0)
-        return target.readText()
+        val data = target.readText()
+        Log.i("BS4PicoProbe", "pid=${Process.myPid()} private read data=${data.replace('\n', ' ')}")
+        return data
     }
 
     fun prepareVisit(context: Context): String {

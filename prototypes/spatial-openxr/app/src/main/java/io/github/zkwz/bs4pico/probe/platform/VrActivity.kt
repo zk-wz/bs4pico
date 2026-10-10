@@ -3,6 +3,7 @@ package io.github.zkwz.bs4pico.probe.platform
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.os.Process
 import android.util.Log
 import android.view.Surface
 import android.view.SurfaceHolder
@@ -78,7 +79,9 @@ class VrActivity : Activity(), SurfaceHolder.Callback {
         val currentSurface = surface ?: return
         if (!resumed || handle != 0L || returning || !currentSurface.isValid) return
         nativeEpoch++
-        handle = nativeStart(currentSurface, ProbeData.file(this).absolutePath)
+        handle = nativeStart(currentSurface, ProbeData.file(this).absolutePath,
+            System.identityHashCode(this), nativeEpoch,
+            BuildConfig.DEBUG && intent.getBooleanExtra("probe_haptics", false))
         log("nativeStart handle=$handle epoch=$nativeEpoch")
     }
     private fun stopNative() {
@@ -123,9 +126,9 @@ class VrActivity : Activity(), SurfaceHolder.Callback {
         }
     }
     private fun log(event: String) {
-        Log.i("BS4PicoProbe", "Native@${System.identityHashCode(this)} $event task=$taskId")
+        Log.i("BS4PicoProbe", "pid=${Process.myPid()} activity=${System.identityHashCode(this)} epoch=$nativeEpoch Native@${System.identityHashCode(this)} $event task=$taskId")
     }
-    private external fun nativeStart(surface: Surface, dataPath: String): Long
+    private external fun nativeStart(surface: Surface, dataPath: String, activityId: Int, epoch: Long, hapticProbe: Boolean): Long
     private external fun nativeStop(handle: Long)
     companion object { init { System.loadLibrary("xrprobe") } }
 }

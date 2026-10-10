@@ -27,12 +27,7 @@
 namespace {
 constexpr char kTag[] = "BS4PicoXR";
 constexpr XrViewConfigurationType kStereo = XR_VIEW_CONFIGURATION_TYPE_PRIMARY_STEREO;
-void log(const char* format, ...) {
-    va_list args;
-    va_start(args, format);
-    __android_log_vprint(ANDROID_LOG_INFO, kTag, format, args);
-    va_end(args);
-}
+std::atomic<uint64_t> nextWorkerId{1};
 void vkCheck(VkResult result, const char* operation) {
     if (result != VK_SUCCESS) {
         char message[192];
@@ -50,6 +45,37 @@ Matrix multiply(const Matrix& a, const Matrix& b) {
                 result.m[col * 4 + row] += a.m[k * 4 + row] * b.m[col * 4 + k];
     return result;
 }
+Matrix poseMatrix(const XrPosef& pose) {
+    const auto& q = pose.orientation;
+    Matrix result;
+    result.m[0] = 1 - 2 * (q.y * q.y + q.z * q.z);
+    result.m[1] = 2 * (q.x * q.y + q.z * q.w);
+    result.m[2] = 2 * (q.x * q.z - q.y * q.w);
+    result.m[4] = 2 * (q.x * q.y - q.z * q.w);
+    result.m[5] = 1 - 2 * (q.x * q.x + q.z * q.z);
+    result.m[6] = 2 * (q.y * q.z + q.x * q.w);
+    result.m[8] = 2 * (q.x * q.z + q.y * q.w);
+    result.m[9] = 2 * (q.y * q.z - q.x * q.w);
+    result.m[10] = 1 - 2 * (q.x * q.x + q.y * q.y);
+    result.m[12] = pose.position.x;
+    result.m[13] = pose.position.y;
+    result.m[14] = pose.position.z;
+    result.m[15] = 1;
+    return result;
+}
+constexpr Matrix localScaleOffset(float sx, float sy, float sz, float x, float y, float z) {
+    return {{sx, 0, 0, 0, 0, sy, 0, 0, 0, 0, sz, 0, x, y, z, 1}};
+}
+struct DrawRange { uint32_t firstVertex{}, count{}; };
+constexpr Matrix kGripLocal = localScaleOffset(0.035f, 0.035f, 0.07f, 0, 0, 0);
+// Unit boxes span [-1,+1]. Shaft runs from local z=0 to z=-0.30m.
+// Two fixed 45-degree box arms end at z=-0.35m; no per-frame trigonometry.
+constexpr std::array<Matrix, 3> kAimLocal{{
+    localScaleOffset(0.008f, 0.008f, 0.15f, 0, 0, -0.15f),
+    {{0.005f, 0, -0.005f, 0, 0, 0.008f, 0, 0, 0.025f, 0, 0.025f, 0, 0.025f, 0, -0.32f, 1}},
+    {{0.005f, 0,  0.005f, 0, 0, 0.008f, 0, 0, -0.025f, 0, 0.025f, 0, -0.025f, 0, -0.32f, 1}}
+}};
+static_assert(sizeof(Matrix) == 64, "Vertex push constants must remain 64 bytes");
 Matrix viewProjection(const XrView& view) {
     const auto& q = view.pose.orientation;
     // Inverse rigid pose, column-major. OpenXR is right-handed, -Z forward.
@@ -91,6 +117,35 @@ struct Eye {
     VkDeviceMemory depthMemory{VK_NULL_HANDLE};
     VkImageView depthView{VK_NULL_HANDLE};
 };
+struct HandState {
+    XrActionStateFloat trigger{XR_TYPE_ACTION_STATE_FLOAT};
+    XrActionStateBoolean exit{XR_TYPE_ACTION_STATE_BOOLEAN};
+    XrBool32 gripActive{}, aimActive{};
+    XrSpaceLocation grip{XR_TYPE_SPACE_LOCATION}, aim{XR_TYPE_SPACE_LOCATION};
+};
+struct HandHistory {
+    XrBool32 triggerActive{}, gripActive{}, aimActive{};
+    float triggerValue{};
+    XrTime triggerChangeTime{};
+    XrSpaceLocationFlags gripFlags{}, aimFlags{};
+};
+struct ProfileCache {
+    XrPath path{XR_NULL_PATH};
+    char text[XR_MAX_PATH_LENGTH]{"none"};
+    XrResult queryResult{XR_SUCCESS}, stringResult{XR_SUCCESS};
+    bool changed{};
+};
+struct ProfileSuggestion {
+    XrPath path{XR_NULL_PATH};
+    XrResult result{XR_ERROR_PATH_UNSUPPORTED};
+};
+struct HapticState {
+    bool attempted{}, applied{}, pending{}, boundChecked{};
+    XrPath boundProfile{XR_NULL_PATH};
+    uint32_t boundCount{};
+    XrResult boundResult{XR_SUCCESS};
+    XrResult applyResult{XR_SUCCESS}, stopResult{XR_SUCCESS};
+};
 
 class Probe {
 public:
@@ -100,13 +155,34 @@ public:
     std::string dataPath;
     std::atomic<bool> stop{false};
     std::thread worker;
+    jint activityId{};
+    jlong epoch{};
+    bool hapticProbe{};
+    const pid_t pid{::getpid()};
+    const uint64_t workerId{nextWorkerId.fetch_add(1, std::memory_order_relaxed)};
+    uint64_t sessionId{}, sequence{};
+
+    void log(const char* format, ...) {
+        char text[2048];
+        const int prefix = std::snprintf(text, sizeof(text),
+            "pid=%d activity=%d epoch=%" PRId64 " worker=%" PRIu64 " session=%" PRIu64 " seq=%" PRIu64 " ",
+            pid, activityId, static_cast<int64_t>(epoch), workerId, sessionId, ++sequence);
+        if (prefix < 0 || static_cast<size_t>(prefix) >= sizeof(text)) return;
+        va_list args;
+        va_start(args, format);
+        std::vsnprintf(text + prefix, sizeof(text) - static_cast<size_t>(prefix), format, args);
+        va_end(args);
+        for (char* p = text; *p; ++p)
+            if (*p == '\n' || *p == '\r') *p = ' ';
+        __android_log_write(ANDROID_LOG_INFO, kTag, text);
+    }
 
     void run() noexcept {
         if (vm->AttachCurrentThread(&env, nullptr) != JNI_OK) {
             log("ERROR attaching native worker to JavaVM");
             return;
         }
-        log("worker started; Android Surface is lifecycle gate only");
+        log("worker started; tid=%d Android Surface is lifecycle gate only hapticProbe=%u", ::gettid(), hapticProbe);
         bool notifyExit = false;
         try {
             initialize();
@@ -115,6 +191,7 @@ public:
                 if (runtimeExit) { notifyExit = true; break; }
                 if (running) {
                     frame();
+                    if (runtimeExit) { notifyExit = true; break; }
                     if (controllerExit) {
                         status("Controller requested return to manager");
                         notifyExit = true;
@@ -125,8 +202,10 @@ public:
                 }
             }
         } catch (const std::exception& e) {
+            notifyExit = runtimeExit;
             status(std::string("OpenXR failed: ") + e.what());
         } catch (...) {
+            notifyExit = runtimeExit;
             status("OpenXR failed: unexpected native exception");
         }
         shutdown();
@@ -148,9 +227,19 @@ private:
     XrSpace head{XR_NULL_HANDLE};
     XrReferenceSpaceType worldType{XR_REFERENCE_SPACE_TYPE_LOCAL};
     XrActionSet actionSet{XR_NULL_HANDLE};
-    XrAction gripAction{XR_NULL_HANDLE}, aimAction{XR_NULL_HANDLE}, exitAction{XR_NULL_HANDLE}, triggerAction{XR_NULL_HANDLE};
+    XrAction gripAction{XR_NULL_HANDLE}, aimAction{XR_NULL_HANDLE}, exitAction{XR_NULL_HANDLE}, triggerAction{XR_NULL_HANDLE}, hapticAction{XR_NULL_HANDLE};
     std::array<XrPath, 2> handPaths{};
     std::array<XrSpace, 2> gripSpaces{}, aimSpaces{};
+    std::array<HandState, 2> hands{};
+    std::array<HandHistory, 2> previousHands{};
+    XrResult syncResult{XR_SESSION_NOT_FOCUSED};
+    bool syncAttempted{};
+    std::array<ProfileCache, 2> handProfiles{};
+    std::array<ProfileSuggestion, 3> profileSuggestions{};
+    std::array<HapticState, 2> haptics{};
+    bool profilesInitialized{}, forceSample{true};
+    XrTime pendingChangeTime{}, frameDisplayTime{};
+    bool pendingReferenceChange{};
     bool picoBindings{}, running{}, runtimeExit{}, controllerExit{};
     XrSessionState sessionState{XR_SESSION_STATE_UNKNOWN};
     XrEnvironmentBlendMode blendMode{XR_ENVIRONMENT_BLEND_MODE_OPAQUE};
@@ -168,7 +257,11 @@ private:
     VkFence fence{VK_NULL_HANDLE};
     VkBuffer vertices{VK_NULL_HANDLE};
     VkDeviceMemory vertexMemory{VK_NULL_HANDLE};
-    uint32_t vertexCount{};
+    DrawRange worldRange;
+    std::array<DrawRange, 2> handRanges{};
+    std::array<bool, 2> drawGrip{}, drawAim{};
+    std::array<Matrix, 2> gripModels{};
+    std::array<std::array<Matrix, 3>, 2> aimModels{};
     VkFormat colorFormat{VK_FORMAT_UNDEFINED}, depthFormat{VK_FORMAT_UNDEFINED};
     std::array<Eye, 2> eyes;
     std::array<XrView, 2> views{{{XR_TYPE_VIEW}, {XR_TYPE_VIEW}}};
@@ -194,6 +287,7 @@ private:
     }
     void xrCheck(XrResult result, const char* operation) {
         if (XR_FAILED(result)) {
+            noteLoss(result);
             char name[XR_MAX_RESULT_STRING_SIZE]{};
             if (instance) xrResultToString(instance, result, name);
             char message[256];
@@ -225,13 +319,14 @@ private:
         auto supported = [&](const char* name) {
             return std::any_of(extensions.begin(), extensions.end(), [&](const auto& e) { return std::strcmp(e.extensionName, name) == 0; });
         };
-        for (const auto& e : extensions) log("runtime extension %s version=%u", e.extensionName, e.extensionVersion);
         for (const char* required : {XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME, XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME})
             if (!supported(required)) throw std::runtime_error(std::string("Runtime missing required extension ") + required);
         std::vector<const char*> enabled{XR_KHR_ANDROID_CREATE_INSTANCE_EXTENSION_NAME, XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME};
         // Request OpenXR 1.0 for older Android runtimes; enable the Pico profile extension only when advertised.
         picoBindings = supported(XR_BD_CONTROLLER_INTERACTION_EXTENSION_NAME);
         if (picoBindings) enabled.push_back(XR_BD_CONTROLLER_INTERACTION_EXTENSION_NAME);
+        log("runtime extensions available=%u enabled=%zu", count, enabled.size());
+        for (const char* name : enabled) log("enabled runtime extension %s", name);
         XrInstanceCreateInfoAndroidKHR androidInfo{XR_TYPE_INSTANCE_CREATE_INFO_ANDROID_KHR};
         androidInfo.applicationVM = vm;
         androidInfo.applicationActivity = activity;
@@ -282,6 +377,7 @@ private:
         sessionInfo.next = &binding;
         sessionInfo.systemId = system;
         xrCheck(xrCreateSession(instance, &sessionInfo, &session), "xrCreateSession");
+        sessionId = workerId;
         log("XR session created");
         updateSharedFile();
         createSpaces();
@@ -390,8 +486,8 @@ private:
         xrCheck(xrCreateAction(actionSet, &info, &result), "xrCreateAction");
         return result;
     }
-    void suggestBindings(const char* profile, bool pico) {
-        std::array<XrActionSuggestedBinding, 8> bindings{};
+    void suggestBindings(const char* profile, bool pico, int suggestion) {
+        std::array<XrActionSuggestedBinding, 10> bindings{};
         uint32_t count{};
         for (int i = 0; i != 2; ++i) {
             const char* hand = i == 0 ? "left" : "right";
@@ -404,12 +500,15 @@ private:
             bind(aimAction, "aim/pose");
             bind(exitAction, pico ? (i == 0 ? "y/click" : "b/click") : "select/click");
             if (pico) bind(triggerAction, "trigger/value");
+            std::snprintf(text, sizeof(text), "/user/hand/%s/output/haptic", hand);
+            bindings[count++] = {hapticAction, path(text)};
         }
         XrInteractionProfileSuggestedBinding info{XR_TYPE_INTERACTION_PROFILE_SUGGESTED_BINDING};
         info.interactionProfile = path(profile);
         info.countSuggestedBindings = count;
         info.suggestedBindings = bindings.data();
         XrResult result = xrSuggestInteractionProfileBindings(instance, &info);
+        profileSuggestions[suggestion] = {info.interactionProfile, result};
         log("suggest profile=%s result=%d (suggestion does not prove active controller support)", profile, result);
         if (!pico) xrCheck(result, "suggest simple controller bindings");
     }
@@ -423,10 +522,11 @@ private:
         aimAction = action("aim", XR_ACTION_TYPE_POSE_INPUT);
         exitAction = action("return_to_manager", XR_ACTION_TYPE_BOOLEAN_INPUT);
         triggerAction = action("trigger", XR_ACTION_TYPE_FLOAT_INPUT);
-        suggestBindings("/interaction_profiles/khr/simple_controller", false);
+        hapticAction = action("haptic", XR_ACTION_TYPE_VIBRATION_OUTPUT);
+        suggestBindings("/interaction_profiles/khr/simple_controller", false, 0);
         if (picoBindings) {
-            suggestBindings("/interaction_profiles/bytedance/pico4_controller", true);
-            suggestBindings("/interaction_profiles/bytedance/pico_neo3_controller", true);
+            suggestBindings("/interaction_profiles/bytedance/pico4_controller", true, 1);
+            suggestBindings("/interaction_profiles/bytedance/pico_neo3_controller", true, 2);
         } else log("XR_BD_controller_interaction absent; Pico bindings not enabled");
         XrSessionActionSetsAttachInfo attach{XR_TYPE_SESSION_ACTION_SETS_ATTACH_INFO};
         attach.countActionSets = 1;
@@ -460,7 +560,8 @@ private:
     }
     void createGeometry() {
         std::vector<Vertex> data;
-        data.reserve(4000);
+        // 26 original boxes, 3 axis shafts, 3 closed pyramid heads, 2 hand boxes.
+        data.reserve(1170);
         auto box = [&](float x, float y, float z, float sx, float sy, float sz, float red, float green, float blue) {
             const float corners[8][3] = {
                 {x-sx,y-sy,z-sz},{x+sx,y-sy,z-sz},{x+sx,y+sy,z-sz},{x-sx,y+sy,z-sz},
@@ -472,8 +573,9 @@ private:
                 data.push_back({{p[0], p[1], p[2]}, {red*shade, green*shade, blue*shade}});
             }
         };
-        float centerY = worldType == XR_REFERENCE_SPACE_TYPE_STAGE ? 1.5f : 0.0f;
-        float floorY = centerY - 1.5f;
+        const float centerY = worldType == XR_REFERENCE_SPACE_TYPE_STAGE ? 1.5f : 0.0f;
+        const float floorY = centerY - 1.5f;
+        worldRange.firstVertex = static_cast<uint32_t>(data.size());
         box(-0.65f, centerY, -2, 0.22f, 0.22f, 0.22f, 1, 0.08f, 0.04f);
         box(0.65f, centerY, -2, 0.22f, 0.22f, 0.22f, 0.04f, 0.3f, 1);
         box(0, centerY + 0.15f, -4, 0.35f, 0.35f, 0.35f, 0.08f, 1, 0.2f);
@@ -482,7 +584,39 @@ private:
             box(float(i), floorY, -5, 0.012f, 0.008f, 5, 0.2f, 0.35f, 0.45f);
         for (int i = 0; i <= 10; ++i)
             box(0, floorY, -float(i), 5, 0.008f, 0.012f, 0.2f, 0.35f, 0.45f);
-        vertexCount = static_cast<uint32_t>(data.size());
+        // Arrows start at (0,floorY,-2): 0.42m shafts plus 0.08m pyramid heads.
+        box(0.21f, floorY, -2, 0.21f, 0.008f, 0.008f, 1, 0, 0);
+        box(0, floorY + 0.21f, -2, 0.008f, 0.21f, 0.008f, 0, 1, 0);
+        box(0, floorY, -2.21f, 0.008f, 0.008f, 0.21f, 0, 0, 1);
+        auto arrowHead = [&](const XrVector3f& direction, const XrVector3f& side, const XrVector3f& up,
+                             float red, float green, float blue) {
+            const float origin[3] = {0, floorY, -2};
+            const float d[3] = {direction.x, direction.y, direction.z};
+            const float s[3] = {side.x, side.y, side.z};
+            const float u[3] = {up.x, up.y, up.z};
+            const float signs[4][2] = {{-1,-1},{1,-1},{1,1},{-1,1}};
+            float corners[5][3];
+            for (int axis = 0; axis != 3; ++axis) {
+                for (int corner = 0; corner != 4; ++corner)
+                    corners[corner][axis] = origin[axis] + 0.42f * d[axis]
+                        + 0.04f * (signs[corner][0] * s[axis] + signs[corner][1] * u[axis]);
+                corners[4][axis] = origin[axis] + 0.5f * d[axis];
+            }
+            const int indices[18] = {0,1,4,1,2,4,2,3,4,3,0,4,0,3,2,0,2,1};
+            for (int i = 0; i != 18; ++i) {
+                const auto& p = corners[indices[i]];
+                data.push_back({{p[0], p[1], p[2]}, {red, green, blue}});
+            }
+        };
+        arrowHead({1,0,0}, {0,1,0}, {0,0,1}, 1, 0, 0);
+        arrowHead({0,1,0}, {1,0,0}, {0,0,1}, 0, 1, 0);
+        arrowHead({0,0,-1}, {1,0,0}, {0,1,0}, 0, 0, 1);
+        worldRange.count = static_cast<uint32_t>(data.size()) - worldRange.firstVertex;
+        for (int hand = 0; hand != 2; ++hand) {
+            handRanges[hand].firstVertex = static_cast<uint32_t>(data.size());
+            box(0, 0, 0, 1, 1, 1, hand == 0 ? 0.0f : 1.0f, hand == 0 ? 1.0f : 0.0f, 1);
+            handRanges[hand].count = static_cast<uint32_t>(data.size()) - handRanges[hand].firstVertex;
+        }
         VkBufferCreateInfo info{VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO};
         info.size = data.size() * sizeof(Vertex);
         info.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
@@ -698,16 +832,141 @@ private:
         }
     }
 
+    static const char* handName(int hand) { return hand == 0 ? "left" : "right"; }
+    void noteLoss(XrResult result) noexcept {
+        if (result == XR_SESSION_LOSS_PENDING || result == XR_ERROR_SESSION_LOST || result == XR_ERROR_INSTANCE_LOST)
+            runtimeExit = true;
+    }
     void profiles() {
         for (int i = 0; i != 2; ++i) {
+            auto& cache = handProfiles[i];
             XrInteractionProfileState state{XR_TYPE_INTERACTION_PROFILE_STATE};
-            XrResult result = xrGetCurrentInteractionProfile(session, handPaths[i], &state);
-            char text[XR_MAX_PATH_LENGTH]{};
-            uint32_t length{};
-            if (XR_SUCCEEDED(result) && state.interactionProfile)
-                xrPathToString(instance, state.interactionProfile, sizeof(text), &length, text);
-            log("hand=%s currentProfile=%s result=%d", i == 0 ? "left" : "right", text[0] ? text : "none", result);
+            cache.queryResult = xrGetCurrentInteractionProfile(session, handPaths[i], &state);
+            noteLoss(cache.queryResult);
+            const XrPath current = cache.queryResult == XR_SUCCESS ? state.interactionProfile : XR_NULL_PATH;
+            const bool changed = current != cache.path || !profilesInitialized;
+            cache.changed = cache.changed || changed;
+            forceSample = forceSample || changed;
+            cache.path = current;
+            if (!current) {
+                cache.stringResult = XR_SUCCESS;
+                if (changed) std::snprintf(cache.text, sizeof(cache.text), "none");
+            } else if (changed) {
+                // Path strings are immutable; refresh queries on sample frames
+                // without reformatting/reconverting an unchanged cached profile.
+                uint32_t length{};
+                cache.stringResult = xrPathToString(instance, current, sizeof(cache.text), &length, cache.text);
+                noteLoss(cache.stringResult);
+                if (cache.stringResult != XR_SUCCESS)
+                    std::snprintf(cache.text, sizeof(cache.text), "unavailable");
+            }
+            log("hand=%s currentProfile=%s result=%d pathToStringResult=%d profilePath=%" PRIu64,
+                handName(i), cache.text, cache.queryResult, cache.stringResult, uint64_t(cache.path));
+            if (runtimeExit) break;
         }
+        profilesInitialized = true;
+    }
+    static void poseText(const XrSpaceLocation& location, char (&position)[96], char (&orientation)[96]) {
+        const auto& p = location.pose.position;
+        const auto& q = location.pose.orientation;
+        if (location.locationFlags & XR_SPACE_LOCATION_POSITION_VALID_BIT)
+            std::snprintf(position, sizeof(position), "(%.9g,%.9g,%.9g)", p.x, p.y, p.z);
+        else std::snprintf(position, sizeof(position), "unavailable");
+        if (location.locationFlags & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)
+            std::snprintf(orientation, sizeof(orientation), "(%.9g,%.9g,%.9g,%.9g)", q.x, q.y, q.z, q.w);
+        else std::snprintf(orientation, sizeof(orientation), "unavailable");
+    }
+    void handSample(int i, XrTime time) {
+        const auto& h = hands[i];
+        char gp[96], gq[96], ap[96], aq[96];
+        poseText(h.grip, gp, gq);
+        poseText(h.aim, ap, aq);
+        const auto gf = h.grip.locationFlags, af = h.aim.locationFlags;
+        log("HAND_SAMPLE frame=%" PRIu64 " displayTime=%" PRId64 " hand=%s profile=%s syncResult=%d syncAttempted=%u triggerActive=%u value=%.9g changedSinceLastSync=%u lastChangeTime=%" PRId64
+            " gripActive=%u gripFlags=0x%" PRIx64 " gripPositionValid=%u gripOrientationValid=%u gripPositionTracked=%u gripOrientationTracked=%u gripPosition=%s gripOrientation=%s"
+            " aimActive=%u aimFlags=0x%" PRIx64 " aimPositionValid=%u aimOrientationValid=%u aimPositionTracked=%u aimOrientationTracked=%u aimPosition=%s aimOrientation=%s",
+            frameCount, time, handName(i), handProfiles[i].text, syncResult, unsigned(syncAttempted), h.trigger.isActive, h.trigger.currentState, h.trigger.changedSinceLastSync, h.trigger.lastChangeTime,
+            h.gripActive, uint64_t(gf), unsigned(bool(gf & XR_SPACE_LOCATION_POSITION_VALID_BIT)), unsigned(bool(gf & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)),
+            unsigned(bool(gf & XR_SPACE_LOCATION_POSITION_TRACKED_BIT)), unsigned(bool(gf & XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT)), gp, gq,
+            h.aimActive, uint64_t(af), unsigned(bool(af & XR_SPACE_LOCATION_POSITION_VALID_BIT)), unsigned(bool(af & XR_SPACE_LOCATION_ORIENTATION_VALID_BIT)),
+            unsigned(bool(af & XR_SPACE_LOCATION_POSITION_TRACKED_BIT)), unsigned(bool(af & XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT)), ap, aq);
+    }
+    static const char* hapticClassification(XrResult result) noexcept {
+        if (result == XR_SUCCESS) return "api_success";
+        if (result == XR_SESSION_NOT_FOCUSED) return "no_output_expected";
+        if (result == XR_ERROR_PATH_UNSUPPORTED) return "unsupported";
+        if (result == XR_SESSION_LOSS_PENDING || result == XR_ERROR_SESSION_LOST || result == XR_ERROR_INSTANCE_LOST) return "loss_pending";
+        return "probe_failure";
+    }
+    void hapticLog(int hand, const char* operation, XrResult result, XrTime time, const char* reason) noexcept {
+        char name[XR_MAX_RESULT_STRING_SIZE]{"unavailable"};
+        if (instance) xrResultToString(instance, result, name);
+        const bool apply = std::strcmp(operation, "apply") == 0;
+        log("HAPTIC_API frame=%" PRIu64 " displayTime=%" PRId64 " hand=%s profile=%s subaction=%" PRIu64 " subactionPath=/user/hand/%s op=%s result=%d resultName=%s classification=%s duration=%s amplitude=%s frequency=%s reason=%s",
+            frameCount, time, handName(hand), handProfiles[hand].text, uint64_t(handPaths[hand]), handName(hand), operation,
+            result, name, hapticClassification(result), apply ? "100000000" : "not_applicable",
+            apply ? "0.25" : "not_applicable", apply ? "0" : "not_applicable", reason);
+    }
+    void stopHaptics(const char* reason) noexcept {
+        if (!session || !hapticAction) return;
+        for (int i = 0; i != 2; ++i) {
+            auto& state = haptics[i];
+            if (!state.pending) continue;
+            XrHapticActionInfo info{XR_TYPE_HAPTIC_ACTION_INFO};
+            info.action = hapticAction;
+            info.subactionPath = handPaths[i];
+            const XrResult result = xrStopHapticFeedback(session, &info);
+            hapticLog(i, "stop", result, frameDisplayTime, reason);
+            noteLoss(result);
+            if (result == XR_SUCCESS) state.pending = false;
+            // The first immediate stop result remains the summary's result.
+        }
+    }
+    void probeHaptics(int i, XrTime time) {
+        auto& state = haptics[i];
+        const auto& profile = handProfiles[i];
+        if (!hapticProbe || state.attempted || runtimeExit || sessionState != XR_SESSION_STATE_FOCUSED ||
+            syncResult != XR_SUCCESS || profile.queryResult != XR_SUCCESS || !profile.path ||
+            (!hands[i].gripActive && !hands[i].aimActive)) return;
+        bool suggested = false;
+        for (const auto& suggestion : profileSuggestions)
+            if (suggestion.path == profile.path && suggestion.result == XR_SUCCESS) suggested = true;
+        if (!suggested) return;
+        state.attempted = true;
+        if (!state.boundChecked || state.boundProfile != profile.path) {
+            state.boundChecked = true;
+            state.boundProfile = profile.path;
+            XrBoundSourcesForActionEnumerateInfo enumerate{XR_TYPE_BOUND_SOURCES_FOR_ACTION_ENUMERATE_INFO};
+            enumerate.action = hapticAction;
+            state.boundResult = xrEnumerateBoundSourcesForAction(session, &enumerate, 0, &state.boundCount, nullptr);
+            noteLoss(state.boundResult);
+            if (state.boundResult == XR_SUCCESS && state.boundCount) {
+                // This action-wide opaque list is not evidence that a particular hand is bound.
+                std::vector<XrPath> sources(state.boundCount);
+                state.boundResult = xrEnumerateBoundSourcesForAction(session, &enumerate, static_cast<uint32_t>(sources.size()), &state.boundCount, sources.data());
+                noteLoss(state.boundResult);
+            }
+            log("HAPTIC_BOUND frame=%" PRIu64 " displayTime=%" PRId64 " hand=%s profile=%s result=%d count=%u scope=action opaqueSources=1 classification=%s",
+                frameCount, time, handName(i), profile.text, state.boundResult, state.boundCount,
+                state.boundResult != XR_SUCCESS ? hapticClassification(state.boundResult) : state.boundCount ? "bound_action_not_hand_proof" : "unbound");
+        }
+        if (state.boundResult != XR_SUCCESS || !state.boundCount || runtimeExit) return;
+        XrHapticActionInfo info{XR_TYPE_HAPTIC_ACTION_INFO};
+        info.action = hapticAction;
+        info.subactionPath = handPaths[i];
+        XrHapticVibration vibration{XR_TYPE_HAPTIC_VIBRATION};
+        vibration.duration = 100'000'000;
+        vibration.frequency = XR_FREQUENCY_UNSPECIFIED;
+        vibration.amplitude = 0.25f;
+        state.applied = true;
+        state.applyResult = xrApplyHapticFeedback(session, &info, reinterpret_cast<const XrHapticBaseHeader*>(&vibration));
+        hapticLog(i, "apply", state.applyResult, time, "preflight");
+        noteLoss(state.applyResult);
+        state.pending = state.applyResult == XR_SUCCESS;
+        state.stopResult = xrStopHapticFeedback(session, &info);
+        hapticLog(i, "stop", state.stopResult, time, "immediate");
+        noteLoss(state.stopResult);
+        if (state.stopResult == XR_SUCCESS) state.pending = false;
     }
     void pollEvents() {
         XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
@@ -719,6 +978,7 @@ private:
             case XR_TYPE_EVENT_DATA_SESSION_STATE_CHANGED: {
                 const auto& state = *reinterpret_cast<XrEventDataSessionStateChanged*>(&event);
                 if (state.session != session) break;
+                if (sessionState != state.state) forceSample = true;
                 sessionState = state.state;
                 char name[XR_MAX_STRUCTURE_NAME_SIZE]{};
                 // Session states are logged numerically as well for unambiguous automated evidence.
@@ -726,6 +986,8 @@ private:
                 unsigned index = static_cast<unsigned>(state.state);
                 std::snprintf(name, sizeof(name), "%s", index < 9 ? names[index] : "OTHER");
                 log("XR session state=%s(%d) time=%" PRId64, name, state.state, state.time);
+                if (state.state != XR_SESSION_STATE_FOCUSED && state.state != XR_SESSION_STATE_STOPPING)
+                    stopHaptics("focus_loss");
                 if (state.state == XR_SESSION_STATE_READY && !running && !stop.load()) {
                     XrSessionBeginInfo begin{XR_TYPE_SESSION_BEGIN_INFO};
                     begin.primaryViewConfigurationType = kStereo;
@@ -733,8 +995,12 @@ private:
                     running = true;
                     status("OpenXR READY: session begun, waiting for valid stereo tracking");
                 } else if (state.state == XR_SESSION_STATE_STOPPING && running) {
-                    xrCheck(xrEndSession(session), "xrEndSession");
-                    running = false;
+                    stopHaptics("stopping");
+                    const XrResult endResult = xrEndSession(session);
+                    log("xrEndSession result=%d", endResult);
+                    noteLoss(endResult);
+                    if (endResult == XR_SUCCESS) running = false;
+                    xrCheck(endResult, "xrEndSession");
                 } else if (state.state == XR_SESSION_STATE_EXITING || state.state == XR_SESSION_STATE_LOSS_PENDING) {
                     running = false;
                     runtimeExit = true;
@@ -747,12 +1013,27 @@ private:
                 running = false;
                 status("OpenXR instance loss pending; returning to manager");
                 break;
-            case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED:
+            case XR_TYPE_EVENT_DATA_INTERACTION_PROFILE_CHANGED: {
+                const auto& change = *reinterpret_cast<XrEventDataInteractionProfileChanged*>(&event);
+                if (change.session != session) break;
+                forceSample = true;
                 profiles();
                 break;
+            }
             case XR_TYPE_EVENT_DATA_REFERENCE_SPACE_CHANGE_PENDING: {
                 const auto& change = *reinterpret_cast<XrEventDataReferenceSpaceChangePending*>(&event);
-                log("reference space change type=%d time=%" PRId64 " poseValid=%u; runtime locates future poses in updated reference", change.referenceSpaceType, change.changeTime, change.poseValid);
+                if (change.session != session) break;
+                if (change.poseValid) {
+                    const auto& p = change.poseInPreviousSpace.position;
+                    const auto& q = change.poseInPreviousSpace.orientation;
+                    log("reference space change type=%d changeTime=%" PRId64 " worldType=%d poseValid=%u position=(%.9g,%.9g,%.9g) orientation=(%.9g,%.9g,%.9g,%.9g); identity world remains runtime anchored",
+                        change.referenceSpaceType, change.changeTime, worldType, change.poseValid, p.x, p.y, p.z, q.x, q.y, q.z, q.w);
+                } else {
+                    log("reference space change type=%d changeTime=%" PRId64 " worldType=%d poseValid=%u transform=unavailable; identity world remains runtime anchored",
+                        change.referenceSpaceType, change.changeTime, worldType, change.poseValid);
+                }
+                pendingChangeTime = change.changeTime;
+                pendingReferenceChange = true;
                 break;
             }
             case XR_TYPE_EVENT_DATA_EVENTS_LOST:
@@ -762,53 +1043,84 @@ private:
                 log("XR event type=%d", event.type);
                 break;
             }
+            if (runtimeExit) return;
             event = {XR_TYPE_EVENT_DATA_BUFFER};
         }
     }
 
     void input(XrTime time, bool report) {
+        hands = {};
+        if (!runtimeExit && (!profilesInitialized || report)) profiles();
         XrActiveActionSet active{actionSet, XR_NULL_PATH};
         XrActionsSyncInfo sync{XR_TYPE_ACTIONS_SYNC_INFO};
         sync.countActiveActionSets = 1;
         sync.activeActionSets = &active;
-        XrResult result = xrSyncActions(session, &sync);
-        if (result == XR_SESSION_NOT_FOCUSED) {
-            if (report) log("hands inactive: xrSyncActions=XR_SESSION_NOT_FOCUSED state=%d", sessionState);
-            return;
+        const XrResult previousSync = syncResult;
+        syncAttempted = !runtimeExit;
+        if (syncAttempted) {
+            syncResult = xrSyncActions(session, &sync);
+            noteLoss(syncResult);
         }
-        xrCheck(result, "xrSyncActions");
-        for (int i = 0; i != 2; ++i) {
-            XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
-            get.subactionPath = handPaths[i];
-            get.action = exitAction;
-            XrActionStateBoolean button{XR_TYPE_ACTION_STATE_BOOLEAN};
-            xrCheck(xrGetActionStateBoolean(session, &get, &button), "get exit action");
-            if (sessionState == XR_SESSION_STATE_FOCUSED && button.isActive && button.changedSinceLastSync && button.currentState) {
-                log("controller return button hand=%s active=%u changed=%u", i == 0 ? "left" : "right", button.isActive, button.changedSinceLastSync);
-                controllerExit = true;
-            }
-            get.action = triggerAction;
-            XrActionStateFloat trigger{XR_TYPE_ACTION_STATE_FLOAT};
-            xrCheck(xrGetActionStateFloat(session, &get, &trigger), "get trigger action");
-            if (report) log("hand=%s exitActive=%u exitPressed=%u triggerActive=%u trigger=%.3f", i == 0 ? "left" : "right", button.isActive, button.currentState, trigger.isActive, trigger.currentState);
-            for (int pose = 0; pose != 2; ++pose) {
-                get.action = pose == 0 ? gripAction : aimAction;
-                XrActionStatePose poseState{XR_TYPE_ACTION_STATE_POSE};
-                xrCheck(xrGetActionStatePose(session, &get, &poseState), "get pose action");
-                XrSpaceLocation location{XR_TYPE_SPACE_LOCATION};
-                if (poseState.isActive)
-                    xrCheck(xrLocateSpace(pose == 0 ? gripSpaces[i] : aimSpaces[i], world, time, &location), "locate controller pose");
-                if (report) {
-                    constexpr XrSpaceLocationFlags valid = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-                    log("hand=%s pose=%s active=%u flags=0x%" PRIx64 " valid=%u tracked=%u", i == 0 ? "left" : "right", pose == 0 ? "grip" : "aim", poseState.isActive,
-                        uint64_t(location.locationFlags), (location.locationFlags & valid) == valid,
-                        (location.locationFlags & (XR_SPACE_LOCATION_POSITION_TRACKED_BIT | XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT)) == (XR_SPACE_LOCATION_POSITION_TRACKED_BIT | XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT));
-                    if (poseState.isActive && (location.locationFlags & valid) == valid)
-                        log("hand=%s pose=%s position=(%.3f,%.3f,%.3f)", i == 0 ? "left" : "right", pose == 0 ? "grip" : "aim", location.pose.position.x, location.pose.position.y, location.pose.position.z);
+        if (syncAttempted && previousSync == XR_SUCCESS && syncResult == XR_SESSION_NOT_FOCUSED)
+            stopHaptics("sync_focus_loss");
+        if (!runtimeExit && syncAttempted && sessionState == XR_SESSION_STATE_FOCUSED && syncResult == XR_SUCCESS) {
+            for (int i = 0; i != 2; ++i) {
+                auto& h = hands[i];
+                XrActionStateGetInfo get{XR_TYPE_ACTION_STATE_GET_INFO};
+                get.subactionPath = handPaths[i];
+                get.action = exitAction;
+                xrCheck(xrGetActionStateBoolean(session, &get, &h.exit), "get exit action");
+                if (h.exit.isActive && h.exit.changedSinceLastSync && h.exit.currentState) {
+                    log("controller return button hand=%s active=%u changed=%u", handName(i), h.exit.isActive, h.exit.changedSinceLastSync);
+                    controllerExit = true;
+                }
+                get.action = triggerAction;
+                xrCheck(xrGetActionStateFloat(session, &get, &h.trigger), "get trigger action");
+                for (int pose = 0; pose != 2; ++pose) {
+                    get.action = pose == 0 ? gripAction : aimAction;
+                    XrActionStatePose poseState{XR_TYPE_ACTION_STATE_POSE};
+                    xrCheck(xrGetActionStatePose(session, &get, &poseState), "get pose action");
+                    auto& location = pose == 0 ? h.grip : h.aim;
+                    (pose == 0 ? h.gripActive : h.aimActive) = poseState.isActive;
+                    if (poseState.isActive)
+                        xrCheck(xrLocateSpace(pose == 0 ? gripSpaces[i] : aimSpaces[i], world, time, &location), "locate controller pose");
                 }
             }
         }
-        if (report) profiles();
+        for (int i = 0; i != 2; ++i) {
+            const auto& h = hands[i];
+            const auto& old = previousHands[i];
+            const bool changed = syncResult != previousSync || handProfiles[i].changed || h.trigger.isActive != old.triggerActive ||
+                h.trigger.currentState != old.triggerValue || h.trigger.changedSinceLastSync ||
+                h.trigger.lastChangeTime != old.triggerChangeTime || h.gripActive != old.gripActive || h.aimActive != old.aimActive ||
+                h.grip.locationFlags != old.gripFlags || h.aim.locationFlags != old.aimFlags;
+            if (report || changed) handSample(i, time);
+            handProfiles[i].changed = false;
+            previousHands[i] = {h.trigger.isActive, h.gripActive, h.aimActive, h.trigger.currentState,
+                h.trigger.lastChangeTime, h.grip.locationFlags, h.aim.locationFlags};
+            probeHaptics(i, time);
+        }
+        xrCheck(syncResult, "xrSyncActions");
+    }
+
+    void prepareHandGeometry() {
+        drawGrip.fill(false);
+        drawAim.fill(false);
+        if (sessionState != XR_SESSION_STATE_FOCUSED || syncResult != XR_SUCCESS) return;
+        constexpr XrSpaceLocationFlags validPose = XR_SPACE_LOCATION_POSITION_VALID_BIT
+            | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
+        for (int hand = 0; hand != 2; ++hand) {
+            const auto& state = hands[hand];
+            drawGrip[hand] = state.gripActive && (state.grip.locationFlags & validPose) == validPose;
+            drawAim[hand] = state.aimActive && (state.aim.locationFlags & validPose) == validPose;
+            if (drawGrip[hand])
+                gripModels[hand] = multiply(poseMatrix(state.grip.pose), kGripLocal);
+            if (drawAim[hand]) {
+                const Matrix pose = poseMatrix(state.aim.pose);
+                for (size_t part = 0; part != kAimLocal.size(); ++part)
+                    aimModels[hand][part] = multiply(pose, kAimLocal[part]);
+            }
+        }
     }
 
     void renderEye(int index, uint32_t image) {
@@ -834,9 +1146,21 @@ private:
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
         VkDeviceSize offset = 0;
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &vertices, &offset);
-        Matrix matrix = viewProjection(views[index]);
-        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(matrix), &matrix);
-        vkCmdDraw(commandBuffer, vertexCount, 1, 0, 0);
+        const Matrix view = viewProjection(views[index]);
+        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(view), &view);
+        vkCmdDraw(commandBuffer, worldRange.count, 1, worldRange.firstVertex, 0);
+        if (sessionState == XR_SESSION_STATE_FOCUSED && syncResult == XR_SUCCESS) {
+            auto drawHand = [&](const DrawRange& range, const Matrix& model) {
+                const Matrix matrix = multiply(view, model);
+                vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(matrix), &matrix);
+                vkCmdDraw(commandBuffer, range.count, 1, range.firstVertex, 0);
+            };
+            for (int hand = 0; hand != 2; ++hand) {
+                if (drawGrip[hand]) drawHand(handRanges[hand], gripModels[hand]);
+                if (drawAim[hand])
+                    for (const Matrix& model : aimModels[hand]) drawHand(handRanges[hand], model);
+            }
+        }
         vkCmdEndRenderPass(commandBuffer);
         vkCheck(vkEndCommandBuffer(commandBuffer), "vkEndCommandBuffer");
         vkCheck(vkResetFences(device, 1, &fence), "vkResetFences");
@@ -857,62 +1181,135 @@ private:
     }
 
     void frame() {
+        using Clock = std::chrono::steady_clock;
+        // Pending change frames are sampled until the first crossing: selection
+        // precedes WaitFrame, so every published timing has a real pre-wait start.
+        bool report = forceSample || frameCount == 0 || (frameCount + 1) % 180 == 0 || pendingReferenceChange;
+        const auto started = report ? Clock::now() : Clock::time_point{};
+        auto mark = [&]() { return report ? Clock::now() : Clock::time_point{}; };
+        auto elapsed = [&](Clock::time_point from, Clock::time_point to) -> int64_t {
+            return report ? std::chrono::duration_cast<std::chrono::nanoseconds>(to - from).count() : 0;
+        };
+        int64_t waitFrameNs{}, inputLocateNs{}, imageWaitNs{}, renderSubmitFenceNs{}, endFrameNs{}, frameCpuNs{};
         XrFrameWaitInfo wait{XR_TYPE_FRAME_WAIT_INFO};
         XrFrameState state{XR_TYPE_FRAME_STATE};
-        xrCheck(xrWaitFrame(session, &wait, &state), "xrWaitFrame");
+        XrResult result = xrWaitFrame(session, &wait, &state);
+        const auto waited = mark();
+        waitFrameNs = elapsed(started, waited);
+        noteLoss(result);
+        xrCheck(result, "xrWaitFrame");
         XrFrameBeginInfo begin{XR_TYPE_FRAME_BEGIN_INFO};
-        xrCheck(xrBeginFrame(session, &begin), "xrBeginFrame");
+        result = xrBeginFrame(session, &begin);
+        noteLoss(result);
+        xrCheck(result, "xrBeginFrame");
         ++frameCount;
-        bool report = frameCount == 1 || frameCount % 180 == 0;
+        frameDisplayTime = state.predictedDisplayTime;
+        forceSample = false;
+        if (pendingReferenceChange && state.predictedDisplayTime >= pendingChangeTime) {
+            log("reference space change effective frame=%" PRIu64 " displayTime=%" PRId64 " changeTime=%" PRId64 " worldType=%d",
+                frameCount, state.predictedDisplayTime, pendingChangeTime, worldType);
+            pendingReferenceChange = false;
+        }
         bool submitStereo = false;
         XrViewState viewState{XR_TYPE_VIEW_STATE};
         XrSpaceLocation headLocation{XR_TYPE_SPACE_LOCATION};
         uint32_t viewCount{};
+        auto samples = [&](bool submitted) {
+            if (!report) return;
+            log("FRAME_SAMPLE frame=%" PRIu64 " stereo=%" PRIu64 " predictedDisplayTime=%" PRId64 " predictedDisplayPeriod=%" PRId64
+                " state=%d shouldRender=%u submitted=%u viewCount=%u viewFlags=0x%" PRIx64 " headFlags=0x%" PRIx64 " worldType=%d"
+                " waitFrameNs=%" PRId64 " inputLocateNs=%" PRId64 " imageWaitNs=%" PRId64 " renderSubmitFenceNs=%" PRId64 " endFrameNs=%" PRId64 " frameCpuNs=%" PRId64,
+                frameCount, stereoCount, state.predictedDisplayTime, state.predictedDisplayPeriod, sessionState, state.shouldRender,
+                unsigned(submitted), viewCount, uint64_t(viewState.viewStateFlags), uint64_t(headLocation.locationFlags), worldType,
+                waitFrameNs, inputLocateNs, imageWaitNs, renderSubmitFenceNs, endFrameNs, frameCpuNs);
+            char p[96], q[96];
+            poseText(headLocation, p, q);
+            log("HEAD_SAMPLE frame=%" PRIu64 " displayTime=%" PRId64 " flags=0x%" PRIx64 " position=%s orientation=%s",
+                frameCount, state.predictedDisplayTime, uint64_t(headLocation.locationFlags), p, q);
+            for (int i = 0; i != 2; ++i) {
+                XrSpaceLocation eye{XR_TYPE_SPACE_LOCATION};
+                if (uint32_t(i) < viewCount) {
+                    // XrViewState and XrSpaceLocation use the corresponding bit positions.
+                    eye.locationFlags = viewState.viewStateFlags;
+                    eye.pose = views[i].pose;
+                }
+                poseText(eye, p, q);
+                log("EYE_SAMPLE frame=%" PRIu64 " displayTime=%" PRId64 " eye=%s flags=0x%" PRIx64 " position=%s orientation=%s",
+                    frameCount, state.predictedDisplayTime, handName(i), uint64_t(eye.locationFlags), p, q);
+            }
+        };
+        const auto inputStarted = mark();
+        enum class Segment { Input, ImageWait, Render, None };
+        Segment segment = Segment::Input;
+        Clock::time_point segmentStarted = inputStarted;
         // End every successfully begun frame, including errors and shouldRender=false.
         try {
             input(state.predictedDisplayTime, report);
-            xrCheck(xrLocateSpace(head, world, state.predictedDisplayTime, &headLocation), "locate head");
-            if (state.shouldRender && !stop.load() && !controllerExit) {
-                XrViewLocateInfo locate{XR_TYPE_VIEW_LOCATE_INFO};
-                locate.viewConfigurationType = kStereo;
-                locate.displayTime = state.predictedDisplayTime;
-                locate.space = world;
-                xrCheck(xrLocateViews(session, &locate, &viewState, 2, &viewCount, views.data()), "xrLocateViews");
-                constexpr XrViewStateFlags valid = XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT;
-                if (viewCount == 2 && (viewState.viewStateFlags & valid) == valid) {
-                    submitStereo = true;
-                    for (int i = 0; i != 2; ++i) {
-                        uint32_t image{};
-                        XrSwapchainImageAcquireInfo acquire{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
-                        xrCheck(xrAcquireSwapchainImage(eyes[i].swapchain, &acquire, &image), "xrAcquireSwapchainImage");
-                        XrSwapchainImageWaitInfo imageWait{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
-                        imageWait.timeout = 10'000'000;
-                        XrResult result;
-                        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(2);
-                        do {
-                            result = xrWaitSwapchainImage(eyes[i].swapchain, &imageWait);
-                            if (result == XR_TIMEOUT_EXPIRED && (stop.load() || std::chrono::steady_clock::now() >= deadline))
-                                throw std::runtime_error("XR swapchain wait interrupted or timed out; destroying session without releasing an unwaited image");
-                        } while (result == XR_TIMEOUT_EXPIRED);
-                        xrCheck(result, "xrWaitSwapchainImage");
-                        renderEye(i, image);
-                        XrSwapchainImageReleaseInfo release{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
-                        xrCheck(xrReleaseSwapchainImage(eyes[i].swapchain, &release), "xrReleaseSwapchainImage");
-                        auto& projection = projectionViews[i];
-                        projection.pose = views[i].pose;
-                        projection.fov = views[i].fov;
-                        projection.subImage.swapchain = eyes[i].swapchain;
-                        projection.subImage.imageRect = {{0, 0}, {int32_t(eyes[i].width), int32_t(eyes[i].height)}};
-                        projection.subImage.imageArrayIndex = 0;
-                    }
+            prepareHandGeometry();
+            if (!runtimeExit) {
+                xrCheck(xrLocateSpace(head, world, state.predictedDisplayTime, &headLocation), "locate head");
+                if (state.shouldRender || report) {
+                    XrViewLocateInfo locate{XR_TYPE_VIEW_LOCATE_INFO};
+                    locate.viewConfigurationType = kStereo;
+                    locate.displayTime = state.predictedDisplayTime;
+                    locate.space = world;
+                    xrCheck(xrLocateViews(session, &locate, &viewState, 2, &viewCount, views.data()), "xrLocateViews");
                 }
             }
+            inputLocateNs = elapsed(inputStarted, mark());
+            segment = Segment::None;
+            constexpr XrViewStateFlags valid = XR_VIEW_STATE_POSITION_VALID_BIT | XR_VIEW_STATE_ORIENTATION_VALID_BIT;
+            if (state.shouldRender && !stop.load() && !controllerExit && !runtimeExit &&
+                viewCount == 2 && (viewState.viewStateFlags & valid) == valid) {
+                for (int i = 0; i != 2; ++i) {
+                    uint32_t image{};
+                    XrSwapchainImageAcquireInfo acquire{XR_TYPE_SWAPCHAIN_IMAGE_ACQUIRE_INFO};
+                    xrCheck(xrAcquireSwapchainImage(eyes[i].swapchain, &acquire, &image), "xrAcquireSwapchainImage");
+                    XrSwapchainImageWaitInfo imageWait{XR_TYPE_SWAPCHAIN_IMAGE_WAIT_INFO};
+                    imageWait.timeout = 10'000'000;
+                    segment = Segment::ImageWait;
+                    segmentStarted = mark();
+                    const auto deadline = Clock::now() + std::chrono::seconds(2);
+                    do {
+                        result = xrWaitSwapchainImage(eyes[i].swapchain, &imageWait);
+                        if (result == XR_TIMEOUT_EXPIRED && (stop.load() || Clock::now() >= deadline))
+                            throw std::runtime_error("XR swapchain wait interrupted or timed out; destroying session without releasing an unwaited image");
+                    } while (result == XR_TIMEOUT_EXPIRED);
+                    imageWaitNs += elapsed(segmentStarted, mark());
+                    segment = Segment::None;
+                    xrCheck(result, "xrWaitSwapchainImage");
+                    segment = Segment::Render;
+                    segmentStarted = mark();
+                    renderEye(i, image);
+                    renderSubmitFenceNs += elapsed(segmentStarted, mark());
+                    segment = Segment::None;
+                    XrSwapchainImageReleaseInfo release{XR_TYPE_SWAPCHAIN_IMAGE_RELEASE_INFO};
+                    xrCheck(xrReleaseSwapchainImage(eyes[i].swapchain, &release), "xrReleaseSwapchainImage");
+                    auto& projection = projectionViews[i];
+                    projection.pose = views[i].pose;
+                    projection.fov = views[i].fov;
+                    projection.subImage.swapchain = eyes[i].swapchain;
+                    projection.subImage.imageRect = {{0, 0}, {int32_t(eyes[i].width), int32_t(eyes[i].height)}};
+                    projection.subImage.imageArrayIndex = 0;
+                }
+                submitStereo = true;
+            }
         } catch (...) {
+            const auto failed = mark();
+            if (segment == Segment::Input) inputLocateNs = elapsed(inputStarted, failed);
+            else if (segment == Segment::ImageWait) imageWaitNs += elapsed(segmentStarted, failed);
+            else if (segment == Segment::Render) renderSubmitFenceNs += elapsed(segmentStarted, failed);
             XrFrameEndInfo end{XR_TYPE_FRAME_END_INFO};
             end.displayTime = state.predictedDisplayTime;
             end.environmentBlendMode = blendMode;
-            XrResult result = xrEndFrame(session, &end);
+            const auto endStarted = mark();
+            result = xrEndFrame(session, &end);
+            const auto ended = mark();
+            endFrameNs = elapsed(endStarted, ended);
+            frameCpuNs = elapsed(started, ended);
+            noteLoss(result);
             log("error frame ended with zero layers result=%d", result);
+            samples(false);
             throw;
         }
         XrCompositionLayerProjection projection{XR_TYPE_COMPOSITION_LAYER_PROJECTION};
@@ -925,8 +1322,14 @@ private:
         end.environmentBlendMode = blendMode;
         end.layerCount = submitStereo ? 1 : 0;
         end.layers = submitStereo ? layers : nullptr;
-        xrCheck(xrEndFrame(session, &end), "xrEndFrame");
-        if (submitStereo) {
+        const auto endStarted = mark();
+        result = xrEndFrame(session, &end);
+        const auto ended = mark();
+        endFrameNs = elapsed(endStarted, ended);
+        frameCpuNs = elapsed(started, ended);
+        noteLoss(result);
+        const bool submitted = submitStereo && result == XR_SUCCESS;
+        if (submitted) {
             ++stereoCount;
             if (!firstStereo) {
                 firstStereo = true;
@@ -934,12 +1337,8 @@ private:
                 status("Real OpenXR stereo projection submitted: two Vulkan eyes, head-tracked cubes/grid");
             }
         }
-        if (report) {
-            log("frame=%" PRIu64 " stereo=%" PRIu64 " shouldRender=%u submitted=%u viewFlags=0x%" PRIx64 " headFlags=0x%" PRIx64 " state=%d", frameCount, stereoCount, state.shouldRender, submitStereo, uint64_t(viewState.viewStateFlags), uint64_t(headLocation.locationFlags), sessionState);
-            constexpr XrSpaceLocationFlags valid = XR_SPACE_LOCATION_POSITION_VALID_BIT | XR_SPACE_LOCATION_ORIENTATION_VALID_BIT;
-            if ((headLocation.locationFlags & valid) == valid)
-                log("head position=(%.3f,%.3f,%.3f) orientation=(%.3f,%.3f,%.3f,%.3f)", headLocation.pose.position.x, headLocation.pose.position.y, headLocation.pose.position.z, headLocation.pose.orientation.x, headLocation.pose.orientation.y, headLocation.pose.orientation.z, headLocation.pose.orientation.w);
-        }
+        samples(submitted);
+        xrCheck(result, "xrEndFrame");
     }
 
     static uint64_t parseInteger(const char* line, const char* prefix) {
@@ -1006,15 +1405,18 @@ private:
 
     void shutdown() noexcept {
         log("cleanup begin running=%u state=%d frames=%" PRIu64 " stereo=%" PRIu64, running, sessionState, frameCount, stereoCount);
-        if (session && running) {
+        stopHaptics("shutdown");
+        if (session && running && !runtimeExit) {
             XrResult result = xrRequestExitSession(session);
             log("xrRequestExitSession cleanup result=%d", result);
+            noteLoss(result);
             // Bound the IDLE/READY-independent stop path. DestroySession remains valid if
             // runtime never sends STOPPING; do not call EndSession in an illegal state.
             auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
-            while (running && std::chrono::steady_clock::now() < deadline) {
+            while (running && !runtimeExit && std::chrono::steady_clock::now() < deadline) {
                 XrEventDataBuffer event{XR_TYPE_EVENT_DATA_BUFFER};
                 result = xrPollEvent(instance, &event);
+                noteLoss(result);
                 if (result == XR_EVENT_UNAVAILABLE) {
                     std::this_thread::sleep_for(std::chrono::milliseconds(5));
                     continue;
@@ -1026,11 +1428,27 @@ private:
                     sessionState = changed.state;
                     log("cleanup XR session state=%d", sessionState);
                     if (sessionState == XR_SESSION_STATE_STOPPING) {
-                        log("cleanup xrEndSession result=%d", xrEndSession(session));
-                        running = false;
+                        stopHaptics("cleanup_stopping");
+                        const XrResult endResult = xrEndSession(session);
+                        log("cleanup xrEndSession result=%d", endResult);
+                        noteLoss(endResult);
+                        if (endResult == XR_SUCCESS) running = false;
+                        else break;
                     } else if (sessionState == XR_SESSION_STATE_EXITING || sessionState == XR_SESSION_STATE_LOSS_PENDING) running = false;
                 }
             }
+        }
+        for (int i = 0; i != 2; ++i) {
+            const auto& state = haptics[i];
+            const char* classification = !state.attempted ? "not_covered" :
+                state.boundResult != XR_SUCCESS ? hapticClassification(state.boundResult) :
+                !state.boundCount ? "unbound" :
+                !state.applied ? "not_covered" :
+                state.applyResult != XR_SUCCESS ? hapticClassification(state.applyResult) :
+                state.stopResult != XR_SUCCESS ? hapticClassification(state.stopResult) : "api_preflight_success";
+            log("HAPTIC_SUMMARY hand=%s enabled=%u attempted=%u applyCalled=%u boundResult=%d boundCount=%u applyResult=%d stopResult=%d pending=%u classification=%s physicalVibration=not_verified",
+                handName(i), unsigned(hapticProbe), unsigned(state.attempted), unsigned(state.applied), state.boundResult, state.boundCount,
+                state.applyResult, state.stopResult, unsigned(state.pending), classification);
         }
         if (device) {
             // Teardown only, not in the frame loop. Outstanding work must finish before destruction.
@@ -1077,11 +1495,14 @@ void releaseReferences(JNIEnv* env, Probe* probe) {
 } // namespace
 
 extern "C" JNIEXPORT jlong JNICALL
-Java_io_github_zkwz_bs4pico_probe_platform_VrActivity_nativeStart(JNIEnv* env, jobject activity, jobject surface, jstring dataPath) {
+Java_io_github_zkwz_bs4pico_probe_platform_VrActivity_nativeStart(JNIEnv* env, jobject activity, jobject surface, jstring dataPath, jint activityId, jlong epoch, jboolean hapticProbe) {
     if (!surface || !dataPath) { throwJava(env, "Native XR requires a live Surface and private file path"); return 0; }
     Probe* probe = nullptr;
     try {
         probe = new Probe;
+        probe->activityId = activityId;
+        probe->epoch = epoch;
+        probe->hapticProbe = hapticProbe == JNI_TRUE;
         if (env->GetJavaVM(&probe->vm) != JNI_OK) throw std::runtime_error("Cannot obtain JavaVM");
         probe->activity = env->NewGlobalRef(activity);
         probe->surface = env->NewGlobalRef(surface);
@@ -1119,6 +1540,6 @@ Java_io_github_zkwz_bs4pico_probe_platform_VrActivity_nativeStop(JNIEnv* env, jo
     probe->stop.store(true, std::memory_order_release);
     if (probe->worker.joinable()) probe->worker.join();
     releaseReferences(env, probe);
+    probe->log("nativeStop joined worker and released Java lifecycle references");
     delete probe;
-    log("nativeStop joined worker and released Java lifecycle references");
 }

@@ -2,6 +2,7 @@ package io.github.zkwz.bs4pico.probe.platform
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Process
 import android.util.Log
 import android.view.ViewTreeObserver
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +56,9 @@ class LaunchActivity : SpatialLaunchActivity() {
     }
 
     fun launchNativeNow() {
-        startActivity(Intent(this, VrActivity::class.java))
+        startActivity(Intent(this, VrActivity::class.java).also {
+            if (BuildConfig.DEBUG) it.putExtra("probe_haptics", intent.getBooleanExtra("probe_haptics", false))
+        })
         // Deliberately destroy, rather than keep an invisible Spatial renderer alive.
         finish()
     }
@@ -68,11 +71,12 @@ class LaunchActivity : SpatialLaunchActivity() {
             when (action) {
                 "enter" -> enterVr()
                 "recreate" -> recreate()
+                "finish" -> finish()
             }
         }
     }
 
     private fun log(event: String) {
-        Log.i("BS4PicoProbe", "Manager@${System.identityHashCode(this)} $event draws=$draws task=$taskId")
+        Log.i("BS4PicoProbe", "pid=${Process.myPid()} activity=${System.identityHashCode(this)} Manager@${System.identityHashCode(this)} $event draws=$draws task=$taskId")
     }
 }

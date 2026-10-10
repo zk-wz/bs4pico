@@ -2,6 +2,7 @@ package io.github.zkwz.bs4pico.probe.platform
 
 import android.app.Activity
 import android.app.Application
+import android.os.Process
 import android.util.Log
 import com.pico.spatial.ui.foundation.dsl.launch
 import io.github.zkwz.bs4pico.probe.mainApp
@@ -16,6 +17,7 @@ class SpatialApplication : Application() {
     // Foreground ownership therefore cannot rely on the task back stack alone.
     fun activateScene(activity: Activity) {
         val previous = sceneActivity?.get()
+        log(activity, "activateScene previous=${previous?.let { System.identityHashCode(it) }} previousTask=${previous?.taskId}")
         sceneActivity = WeakReference(activity)
         if (previous === activity) return
         when (previous) {
@@ -23,20 +25,22 @@ class SpatialApplication : Application() {
                 retiringNative = WeakReference(previous)
                 previous.finishForReplacement()
             }
-            is LaunchActivity -> previous.finish()
+            is LaunchActivity -> if (!previous.isDestroyed) previous.finish()
         }
     }
 
     fun requestNative(manager: LaunchActivity) {
+        log(manager, "requestNative")
         if (retiringNative?.get()?.isDestroyed == false) {
             pendingManager = WeakReference(manager)
-            Log.i("BS4PicoProbe", "native entry waiting for previous Activity.onDestroy")
+            log(manager, "native entry waiting for previous Activity.onDestroy")
         } else {
             manager.launchNativeNow()
         }
     }
 
     fun onNativeDestroyed(activity: VrActivity) {
+        log(activity, "onNativeDestroyed")
         if (retiringNative?.get() !== activity) return
         retiringNative = null
         val manager = pendingManager?.get()
@@ -46,6 +50,10 @@ class SpatialApplication : Application() {
         manager?.window?.decorView?.post {
             if (!manager.isDestroyed && !manager.isFinishing) manager.launchNativeNow()
         }
+    }
+
+    private fun log(activity: Activity, event: String) {
+        Log.i("BS4PicoProbe", "Owner pid=${Process.myPid()} activity=${System.identityHashCode(activity)} task=${activity.taskId} $event")
     }
 
     override fun onCreate() {
