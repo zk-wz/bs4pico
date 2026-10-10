@@ -28,5 +28,8 @@
 | [`src/`](../src/)、[`patches/`](../patches/) | 兼容代码、生成器、二进制检查及锁定上游补丁；组件说明见上游架构。 |
 | [`install/`](../install/)、[`tools/`](../tools/) | 上游游戏实例安装/恢复与提取、加载诊断工具。 |
 | [interop skill](../.agents/skills/wsl-windows-interop/SKILL.md) | 通用 Windows 命令调用、UNC 交接和无抢焦点截图；原型只保留薄适配入口。 |
+| [android-cli](../.agents/skills/android-cli/SKILL.md)、[testing-setup](../.agents/skills/testing-setup/SKILL.md) | 用户安装的 Google Android 工具/测试技能；沿用项目的依赖变更 Ask 和设备操作边界，不自动安装工具或测试框架。 |
 
 环境路径和实验历史以 `device-validation/` 中的独立记录为准；AGENTS.md 只维护约定。生成产物与私有输入按 `.gitignore` 隔离，不放入文档源。
+
+两份 Android skills 的官方来源为 [android/skills](https://github.com/android/skills)（[Android CLI](https://github.com/android/skills/tree/main/devtools/android-cli)、[testing-setup](https://github.com/android/skills/tree/main/testing/testing-setup)）；各自目录附上上游 Apache-2.0 `LICENSE.txt`。技能正文及引用保留用户安装的内容，收录不代表执行安装、引入测试依赖或验证 Windows 设备连接。

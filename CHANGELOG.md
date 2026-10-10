@@ -10,6 +10,7 @@ All notable changes to bs-arm64. Each release is built for one Proton build (see
   recorded separately from pending ARM64 hardware and game integration.
 - Reusable WSL/Windows interop skill and configuration-driven command, path and
   exact-window capture helpers; prototype commands are thin adapters.
+- User-installed Android CLI and testing-setup skills with their bundled references.
 
 ### Changed
 - Project conventions remain in `AGENTS.md`; machine paths and experimental
@@ -18,6 +19,9 @@ All notable changes to bs-arm64. Each release is built for one Proton build (see
   references in `docs/upstream/`, and migrate consumers without old-path aliases.
 - Ignore local tool configuration, Android/Kotlin caches and raw validation
   media while retaining result, metadata and checksum records.
+- Protect the user's sole original game copy: prefer external components or an
+  isolated working copy, require verified recoverable backups before writes,
+  and never use hardlinks as backup/write isolation.
 
 ## [0.3.0] – 2026-10-04
 
