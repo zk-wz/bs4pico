@@ -78,7 +78,7 @@ python3 .agents/skills/wsl-windows-interop/scripts/windows_interop.py \
 4. 停止通过应用官方 stop/quit 或特定 PID；不要 `taskkill /IM` 误杀用户其他实例，不删除用户数据或锁文件来“重置”。
 5. 用户可能同时使用桌面，默认不抢焦点、不注入全局鼠标。CLI 不能完成的空间/GUI 步骤，先准备稳定场景，再用 Ask 明确验证目标、准确窗口、操作、完成后停在哪里；等用户反馈后采集状态。不能把普通屏幕坐标点击、消息投递成功或进程存在算作空间交互通过。
 6. 如果 GUI 在 WSL interop 下无法维持会话，记录具体失败，选择 Windows 原生启动通道；不要通过重装环境或全局关闭安全策略规避。
-7. 最小化/遮挡会影响 GPU 窗口显示、截图和性能。精确窗口捕获前检查最小化状态；遇到只剩标题栏时请用户恢复，不自行抢焦点。截图后确认实际场景，而不是仅确认 PNG 文件存在。
+7. 最小化/遮挡会影响 GPU 窗口显示、截图和性能。通用入口默认拒绝最小化窗口且不抢焦点；有明确授权时可使用下述临时前台租约及最小化恢复。用户中途切走优先，不反复激活、不保持置顶；截图后确认实际场景，而不是仅确认 PNG 文件存在。
 8. 包级 force-stop/terminate 可用于明确授权的后台清理或冷启动条件，但强杀不能替代正常 Back/Home/close 的资源释放与恢复验证。
 
 ## 5. 文件交接
@@ -107,7 +107,11 @@ python3 .agents/skills/wsl-windows-interop/scripts/windows_interop.py capture \
   --output private/validation/window.png
 ```
 
-`--process` 是不含 `.exe` 的完整进程名，`--title` 是完整窗口标题；二者区分大小写，不按 AVD 名或标题子串匹配。定位对象是 `Get-Process` 的主窗口，不枚举同一进程的所有顶层窗口，不能用于该进程的任意多窗口选择。只允许恰好一个匹配且有主窗口句柄的进程，零个或多个均报错；最小化窗口报错并要求用户恢复，不调整焦点、不点鼠标、不恢复/启动窗口。沿用 `GetWindowRect` / `PrintWindow(..., 2)` 到 PNG 的实现，不捕获整个桌面。GPU/空间合成层仍可能输出黑色、背景或旧帧；成功退出/非空 PNG 不证明视觉内容正确，必须查看图像。未运行目标时只报告缺失，不为了截图重启模拟器。
+`--process` 是不含 `.exe` 的完整进程名，`--title` 是完整窗口标题；二者区分大小写，不按 AVD 名或标题子串匹配。定位对象是 `Get-Process` 的主窗口，不枚举同一进程的所有顶层窗口，不能用于该进程的任意多窗口选择。只允许恰好一个匹配且有主窗口句柄的进程，零个或多个均报错；默认不调整焦点、不恢复最小化窗口。
+
+用户已授权时可加 `--foreground`，需要恢复最小化窗口时同时加 `--restore-minimized`。仅借用精确目标窗口的前台；原前台无法识别为唯一可交还主窗口时不激活，按需无激活恢复。激活后一次 DWM 合成及 200ms 重绘，完成 PrintWindow 后、PNG 编码前释放：仍由本次持有焦点时尝试交还原窗口，原来最小化则恢复最小化；交还被系统拒绝则最小化目标兜底。用户已切走则不抢回、不改变其新焦点。不存在持续前台、循环激活、置顶或键鼠注入。
+
+stderr JSON 记录实际 `foregroundAtCapture`、最小化前后状态、`foregroundBorrowed`、`previousFocusRestored`、`focusRelease` 与 `focusScopeMs`；请求前台不保证取得前台，最小化兜底也不代表交还焦点成功。沿用 `GetWindowRect` / `PrintWindow(..., 2)` 到 PNG，不捕获整个桌面。GPU/空间合成层仍可能输出黑色、背景或旧帧；成功退出/非空 PNG 不证明视觉内容正确，必须查看图像。未运行目标时只报告缺失，不为了截图重启模拟器。
 
 ## 6. 验证与报告
 
@@ -128,6 +132,6 @@ Linux 与 Windows 的 ADB/调试服务通常是两套进程。Linux CLI 没设�
 
 ## 本仓库应用
 
-构建说明见 `docs/build/README.md`，Windows 宿主历史记录及产品限制见 `docs/device-validation/WINDOWS_EMULATOR_VALIDATION.md`。`prototypes/spatial-openxr/windows-tools.sh pico|adb <args>` 是 `run` 的薄适配器，别名及宿主路径来自同一私有配置；`prototypes/spatial-openxr/capture-emulator.py --output PATH`（兼容旧 `--out`）仅保留 PICO 进程名和完整默认标题，可用 `--title` 指定实际完整标题。
+构建说明见 `docs/build/README.md`，Windows 宿主历史记录及产品限制见 `docs/device-validation/WINDOWS_EMULATOR_VALIDATION.md`。`prototypes/spatial-openxr/windows-tools.sh pico|adb <args>` 是 `run` 的薄适配器，别名及宿主路径来自同一私有配置；`prototypes/spatial-openxr/capture-emulator.py --output PATH`（兼容旧 `--out`）保留 PICO 进程名和完整默认标题，可用 `--title` 指定实际完整标题。该 PICO 入口按根 `AGENTS.md` 的用户授权默认传 `--foreground --restore-minimized`，仅借用截图期间的前台；`--background` 跳过激活与最小化恢复，用于诊断对比，不改变通用入口的无焦点默认值。
 
-已收敛的重复操作：宿主解释器/CLI 入口与前置参数、进程局部环境/cwd、安全动态参数传输、Windows CRT 引用、原生退出码与并发原始字节 I/O 转发、相对 Linux 路径转换、无焦点操作的精确窗口 PNG 捕获。新调用复用这些入口，不再复制 PowerShell 拼接、`wslpath` 和 `PrintWindow` 脚本。本 skill 不依赖 PICO；设备操作仍读取对应产品 skill 并使用真实 CLI 表面。
+已收敛的重复操作：宿主解释器/CLI 入口与前置参数、进程局部环境/cwd、安全动态参数传输、Windows CRT 引用、原生退出码与并发原始字节 I/O 转发、相对 Linux 路径转换、可选授权前台激活的精确窗口 PNG 捕获。新调用复用这些入口，不再复制 PowerShell 拼接、`wslpath` 和 `PrintWindow` 脚本。本 skill 不依赖 PICO；设备操作仍读取对应产品 skill 并使用真实 CLI 表面。
