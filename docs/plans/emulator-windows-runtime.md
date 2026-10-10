@@ -46,6 +46,6 @@ R0–R4 是核心交付；R5 是独立的早期音频结果，不阻止不依赖
 
 ## 交付
 
-交付候选审计结论、锁定输入、独立诊断宿主/PE/Unix-call 源码与可复现构建部署入口；新目录在实施时确定，不把尚不存在的命令写成已可执行脚本。实验依 [记录规范](../device-validation/README.md)保存在新目录，大型产物留 `private/validation/`。结果分别标识 ELF 宿主 ABI、PE 客体 ABI和是否使用翻译。
+交付候选审计结论、锁定输入、独立诊断宿主/PE/Unix-call 源码与可复现构建部署入口；新目录在实施时确定，不把尚不存在的命令写成已可执行脚本。实验依 [记录规范](../device-validation/AGENTS.md)保存在新目录，大型产物留 `private/validation/`。结果分别标识 ELF 宿主 ABI、PE 客体 ABI和是否使用翻译。
 
 E1 可并行。E2 核心通过后支持 E3 Windows 服务探针和 E4 Windows 图形实验；Steam 候选来源审计无需等待 E2。

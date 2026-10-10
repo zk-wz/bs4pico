@@ -1,6 +1,6 @@
 # 调研索引
 
-专题文件记录结论、官方文档或源码链接、查验日期，以及待验证问题。测量数据应链接到真机记录，不混入未经实验的性能排名。
+本目录收录专题调研与候选线索；维护要求见 [本目录约定](AGENTS.md)。
 
 优先专题：安卓 Wine/Proton 与纯 ARM64 模块、真实 Steam 服务、Native OpenXR 图像与输入桥、坐标和帧时序、音频延迟、缓存与构建隔离，以及 Spatial 外部双眼画面。
 
@@ -10,9 +10,9 @@ Pico CLI 的项目/设备工具和其 Agent 工作流要分开评估：有工作
 
 ## Native OpenXR 知识入口
 
-2026-10-07 整理了项目 skill：[pico-native-openxr](../../.agents/skills/pico-native-openxr/SKILL.md)。官方网页及已检查 LLM 文本入口见 [来源说明](../../.agents/skills/pico-native-openxr/references/sources.md)；Android 接入、渲染/坐标/输入、扩展性能和 BS for Pico 桥接分别放在其 references 中，避免在这里重复维护。
+2026-10-07 整理了项目 skill：[pico-native-openxr](../../.agents/skills/pico-native-openxr/SKILL.md)。官方网页及已检查 LLM 文本入口见 [来源说明](../../.agents/skills/pico-native-openxr/references/sources.md)；Android 接入、渲染/坐标/输入、扩展性能和 BS for Pico 桥接分别放在其 references 中。
 
-这些内容是开发资料与工程建议，尚未证明本 Fork 已在 Space Pro 上运行。实现、官方文档或真机结果变化时，同步更新 skill、项目入口与对应记录。
+这些内容是开发资料与工程建议，尚未证明本 Fork 已在 Space Pro 上运行。
 
 ## 模拟器运行环境与 Steam 候选
 
@@ -23,4 +23,4 @@ Pico CLI 的项目/设备工具和其 Agent 工作流要分开评估：有工作
 | [GameNative Android Proton 发布说明](https://github.com/GameNative/proton-wine/releases) | Android/Bionic补丁、实际 ELF宿主与 PE客体 ABI、构建/依赖闭包、匹配版本的 Unix-call与 Vulkan路径；x86_64/arm64ec标签不证明纯 ARM64客体可用 |
 | [Bionic Steam PR #1430](https://github.com/utkarshdalal/GameNative/pull/1430) | 真实客户端/bootstrap的来源、ABI、许可与可获取性，应用内登录和 Steamworks授权/回调语义；专有或 DRM组件需单独审查，不能直接复用未经核实的资产 |
 
-对应执行计划：[E2运行环境](../plans/emulator-windows-runtime.md)、[E3真实服务](../plans/emulator-steam-service.md)、[E4图形桥](../plans/emulator-graphics-xr.md)。本轮以 x86_64模拟器可执行的自有探针为边界；候选缺少适用组件时记录前提不足，不以 mock或额外 PC服务替代本地闭环。
+对应执行计划：[E2运行环境](../plans/emulator-windows-runtime.md)、[E3真实服务](../plans/emulator-steam-service.md)、[E4图形桥](../plans/emulator-graphics-xr.md)。本轮以 x86_64模拟器可执行的自有探针为边界；候选缺少适用组件时不满足本地闭环前提，mock或额外 PC服务不作为本地闭环证据。

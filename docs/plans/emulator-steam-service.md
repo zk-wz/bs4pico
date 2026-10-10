@@ -39,7 +39,7 @@
 
 ## 交付与决策
 
-交付真实服务依赖/许可清单、匹配 ABI 的最小客户端、脱敏检查日志与单次 `RESULT.md`，遵守 [记录规范](../device-validation/README.md)。只使用自有程序，不读取或修改 Beat Saber 原始副本。
+交付真实服务依赖/许可清单、匹配 ABI 的最小客户端、脱敏检查日志与单次 `RESULT.md`，遵守 [记录规范](../device-validation/AGENTS.md)。只使用自有程序，不读取或修改 Beat Saber 原始副本。
 
 - 正向闭环通过：S1/S2/S4/S5 有证据，S0 正确失败；S3 按样本报告覆盖，不用 Init 成功替代 DLC。
 - 只有无后端失败测试、Web 登录、游戏库下载或 SteamID 查询：只能标部分诊断通过，不能标 Steam 接入完成。

@@ -1,6 +1,6 @@
 # BS for Pico 项目约定
 
-本文件只维护项目约定和文档索引；环境路径、命令、版本、操作历史及实验结果放入对应文档。约定变化时更新本文，实现与验证变化时同步更新文档、阶段规划和相关 skill。
+本文件只维护全局约定和入口；目录细节放在就近的 `AGENTS.md`，环境路径、命令、版本、操作历史及实验结果放入对应文档。约定变化时更新其所属层级，实现与验证变化时同步更新文档、阶段规划和相关 skill。
 
 ## 目标与边界
 
@@ -27,10 +27,14 @@
 - 每次设备实验单独记录版本、设置、步骤、预期、实际与证据，失败也保存；复现使用新输出目录，不覆盖已有记录。真机性能依据帧时间、输入延迟、音画同步和持续表现，不只看平均 FPS。
 - 短结论、必要元数据和证据校验值进入 Git；构建产物、大型日志/截图/trace、机器配置及私有输入忽略提交。新增生成目录时同步维护忽略规则；后续 CI 复用本地构建入口。
 
+## 文档分层与按需上下文
+
+- 根约定只放跨目录边界；README 和索引只讲概况与入口。目录职责、局部维护规则和 Agent 工作细节放入该目录的 `AGENTS.md`，利用 Agent 按目录发现并加入上下文，避免每次加载所有细节。
+- 子目录约定只补充本子树所需内容，不复制上层规则；更新规则时修改其所属文件，普通文档链接过去，不双份维护。无需局部约定的目录不强制新增 `AGENTS.md`。
+- `AGENTS.md` 不是运行记录或长篇资料库；命令、环境事实、调研材料和证据仍留在普通文档或 skill references 中，按任务读取，不预读所有子目录约定。skills 目录沿用 `SKILL.md` 和 references/scripts，不额外新增 `AGENTS.md`。
+
 ## 文档与技能入口
 
-- [文档索引](docs/README.md)：实现入口、目录分类及上游参考资料。
-- [统一项目状态](docs/STATUS.md)；[阶段规划与模拟器计划](docs/plans/ROADMAP.md)；[构建说明](docs/build/README.md)。
-- [设备验证规范](docs/device-validation/README.md)、[Windows 环境与调用记录](docs/device-validation/WINDOWS_EMULATOR_VALIDATION.md)、[Spatial/OpenXR 原型结果](docs/device-validation/2026-10-09-spatial-openxr/RESULT.md)。
+- [文档索引](docs/README.md)与[统一项目状态](docs/STATUS.md)：按任务进入计划、构建、验证及上游资料。
 - [上游打包许可](docs/upstream/LEGAL.md)；上游说明不作为 Pico 验证结论。
-- [Native OpenXR skill](.agents/skills/pico-native-openxr/SKILL.md)、[WSL/Windows interop skill](.agents/skills/wsl-windows-interop/SKILL.md)：按任务读取所需 references/scripts，不重复维护实现或机器路径。
+- [Native OpenXR skill](.agents/skills/pico-native-openxr/SKILL.md)、[WSL/Windows interop skill](.agents/skills/wsl-windows-interop/SKILL.md)：按任务读取所需 references/scripts。

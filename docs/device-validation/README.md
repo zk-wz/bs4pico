@@ -1,13 +1,7 @@
 # 设备与模拟器验证记录
 
-当前没有本 Fork 的 Pico 真机验证记录。已有 [2026-10-09 Spatial/OpenXR 切换实验](2026-10-09-spatial-openxr/RESULT.md)：x86_64 Windows 模拟器，双 ABI APK、真实双眼、人工追踪/输入、Home 与重复切换；不能代替 Space Pro 真机结论。
+本目录保存独立实验、环境信息和复现证据；当前实现与验证进度统一见 [项目状态](../STATUS.md)。记录要求见 [AGENTS.md](AGENTS.md)。
 
-本机路径、WSL 工具链和 Windows 调用历史集中在 [环境/模拟器记录](WINDOWS_EMULATOR_VALIDATION.md)；AGENTS.md 只保留项目约定，不复制命令或运行结论。
-
-每次实验建立 `YYYY-MM-DD-序号-主题/`，复制 [_TEMPLATE.md](_TEMPLATE.md) 为其中的 `RESULT.md`，完成后保留失败或成功结论及证据索引。重复同一实验也要标明不同运行批次。
-
-至少记录设备及系统、源码提交和未提交改动、APK 校验值、组件版本、设置、步骤、预期与实际结果。性能比较还需记录同一曲目/回放、渲染配置、刷新率和测试时长。
-
-优先逐项验证：启动与架构、真实 Steam 登录及游戏/DLC 授权、双眼显示、追踪与坐标、手柄输入与震动、音画同步、暂停/重定位/待机恢复，最后进行持续性能比较。
-
-记录中引用可复现的日志或帧时间数据，不把“进程启动成功”“未崩溃”直接写成“游戏可玩”。大型产物的存放位置由构建环境文档指定，记录保留其路径和校验值。
+- [Spatial / Native OpenXR 切换实验](2026-10-09-spatial-openxr/RESULT.md)：x86_64 Windows 模拟器记录，不代表 Space Pro 真机通过。
+- [WSL/Windows 环境与模拟器调用记录](WINDOWS_EMULATOR_VALIDATION.md)：本机环境、工具路径和已验证调用。
+- [实验模板](_TEMPLATE.md)：新实验记录入口。
