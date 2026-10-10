@@ -1,19 +1,19 @@
 # BS for Pico 文档
 
-最后更新：2026-10-09。本文档树随项目实现和实验结果持续更新。
+最后更新：2026-10-10。当前实现与验证进度统一见 [项目状态](STATUS.md)；本页维护文档与源码导航。
 
-本目录记录 BS for Pico 的计划、实现和证据；原 bs-arm64 的架构、构建、安装与许可资料归档到 `upstream/`。游戏主体仍是 Steam Frame/Linux Fork，没有完成 Pico 移植；独立 Spatial/Native OpenXR 单 APK 原型已在 x86_64 模拟器运行，见 [实验结果](device-validation/2026-10-09-spatial-openxr/RESULT.md)，不是真机性能或游戏验证。
+本目录记录 BS for Pico 的计划、实现和证据；原 bs-arm64 的架构、构建、安装与许可资料归档到 `upstream/`。阶段目标见 [ROADMAP](plans/ROADMAP.md)，详细运行证据见 `device-validation/`；模拟器与上游结果不作为 Space Pro真机或游戏通过结论。
 
 | 目录 | 内容与入口 |
 |---|---|
 | `device-validation/` | [验证记录规范](device-validation/README.md)、[模板](device-validation/_TEMPLATE.md)、[Spatial/OpenXR 模拟器实验](device-validation/2026-10-09-spatial-openxr/RESULT.md)。 |
-| `plans/` | [阶段规划](plans/ROADMAP.md)，后续阶段细化文件也放这里。 |
+| `plans/` | [阶段规划与执行依赖](plans/ROADMAP.md)；当前四份模拟器计划：[E1宿主/XR](plans/emulator-host-xr.md)、[E2运行环境](plans/emulator-windows-runtime.md)、[E3 Steam](plans/emulator-steam-service.md)、[E4图形桥](plans/emulator-graphics-xr.md)。执行状态只维护在 [STATUS](STATUS.md)。 |
 | `decisions/` | [技术决策](decisions/README.md)，记录选择、理由及重新评估条件。 |
 | `research/` | [调研索引](research/README.md)，保留来源、事实及未验证推断。 |
 | `build/` | [APK 构建与部署](build/README.md)。机器路径、已验证环境和调用历史见 [Windows/WSL 记录](device-validation/WINDOWS_EMULATOR_VALIDATION.md)。 |
 | `upstream/` | 上游 [架构](upstream/ARCHITECTURE.md)、[构建](upstream/BUILD.md)、[安装](upstream/INSTALL.md)、[发现](upstream/FINDINGS.md)、[问题](upstream/UPSTREAM.md)及[许可](upstream/LEGAL.md)，不作为 Pico 实测结果。 |
 
-记录采用 `YYYY-MM-DD-主题.md`；真机实验目录采用 `YYYY-MM-DD-序号-主题/`。文档使用相对链接，方便迁入 WSL。
+计划文档按主题命名，不加日期。调研/决策记录采用 `YYYY-MM-DD-主题.md`；实验目录采用 `YYYY-MM-DD-序号-主题/`，用于区分证据批次。文档使用相对链接，方便迁入 WSL。
 
 短结论和必要的证据索引进入 Git；大型日志、trace、录屏和 APK 放在构建/实验产物位置，记录路径及校验值。不要提交登录凭据、授权票据、签名私钥或游戏资源。
 

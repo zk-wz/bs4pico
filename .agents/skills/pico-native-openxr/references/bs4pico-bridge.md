@@ -1,6 +1,6 @@
 # BS for Pico 的原生 XR 接入边界
 
-游戏 XR 桥仍是工程方向，**尚非已完成的 Android 游戏桥实现**。2026-10-09 新增独立 `prototypes/spatial-openxr/` 单 APK，在 x86_64 PICO 模拟器验证真正 Spatial 管理窗口 ↔ C/C++ OpenXR Vulkan 双眼、持久数据、重复切换、生命周期和模拟追踪/右侧 trigger；ARM64 仅构建，未真机验证。进度以 `docs/plans/ROADMAP.md` 和 `docs/device-validation/2026-10-09-spatial-openxr/RESULT.md` 为准，根 `AGENTS.md` 只维护约定。
+游戏 XR 桥仍是工程方向，**尚非已完成的 Android 游戏桥实现**。2026-10-09 新增独立 `prototypes/spatial-openxr/` 单 APK，在 x86_64 PICO 模拟器验证真正 Spatial 管理窗口 ↔ C/C++ OpenXR Vulkan 双眼、持久数据、重复切换、生命周期和模拟追踪/右侧 trigger；ARM64 仅构建，未真机验证。当前状态统一见 `docs/STATUS.md`，阶段目标与模拟器前期计划见 `docs/plans/ROADMAP.md`，运行证据见 `docs/device-validation/2026-10-09-spatial-openxr/RESULT.md`；根 `AGENTS.md` 只维护约定。
 
 ## 分清三段接口
 
@@ -32,7 +32,7 @@ Spatial SDK 的统一渲染/窗口与 OpenXR 自渲染 projection 是不同契�
 
 Windows ARM64 Player/Mono、Wine 的 Android 适配、DXVK Vulkan backend、原生插件、资源存储、音频和 Steam 真实客户端服务需分别推进。本 skill 不提供 Steam 授权替代物；沿用 `docs/upstream/LEGAL.md` 与实际账号/DLC 所有权要求。
 
-GameNative 的 x64 路径可作为诊断参考，但不证明本项目 Windows ARM64 组件链已经可用。上游 Steam Frame benchmark 不能用于承诺 Space Pro FPS。
+GameNative 的 x64 路径可作为诊断参考，但不证明本项目 Windows ARM64 组件链已经可用。E1–E4 只规划模拟器宿主、Windows 运行环境、真实 Steam 和图形桥探针，尚未实现或执行；x86_64 诊断与任何 ARM 翻译结果不得升级为纯 ARM64 或真机通过。候选运行时/真实服务缺少可用 ABI 时保留阻塞，不假定 APK 的 ARM ABI 列表能解决任意子进程、PE/JIT 和 Vulkan thunk。上游 Steam Frame benchmark 不能用于承诺 Space Pro FPS。
 
 ## 建议的验证分段
 

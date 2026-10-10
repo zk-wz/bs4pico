@@ -1,6 +1,8 @@
 # 技术决策
 
-当前工作方向为 Wine/Proton 组件的安卓适配、DXVK 和 Native OpenXR，构建放在 WSL。同一 APK 内拟用 Spatial SDK 提供管理界面、Native OpenXR 提供游戏 VR 渲染；不把游戏画面绕经 Spatial 二次渲染。Activity 切换及资源释放尚未验证，配置完用户的 Pico CLI 后再编写原型。若切换能力或后台开销不满足要求，重新评估管理界面的实现。
+当前工作方向为 Wine/Proton 组件的安卓适配、DXVK 和 Native OpenXR，构建放在 WSL。同一 APK 内用 Spatial SDK 提供管理界面、Native OpenXR 提供 VR 渲染；不把游戏画面绕经 Spatial 二次渲染。两 Activity方案已有 [模拟器实验依据](../device-validation/2026-10-09-spatial-openxr/RESULT.md)，目标机兼容与后台成本仍未确定；若不满足要求，重新评估管理界面的实现。具体实现/验证进度统一见 [项目状态](../STATUS.md)。
+
+下一步先做 [模拟器前期验证](../plans/ROADMAP.md#当前实施批次模拟器前期验证)：运行环境和真实 Steam后端尚未选定；模拟器 x64诊断构建不改变纯 Windows ARM64产品目标。单 APK不预设同进程/同 Vulkan device，图形资源布局按候选运行时及 E4证据决定。
 
 分发建议为宿主 APK 加用户正版游戏导入，后续再评估真实 Steam 登录下载。二者最终使用同一应用私有目录；下载成功不代表运行时 Steam 初始化和授权验证已经解决。
 

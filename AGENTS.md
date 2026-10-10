@@ -30,7 +30,7 @@
 ## 文档与技能入口
 
 - [文档索引](docs/README.md)：实现入口、目录分类及上游参考资料。
-- [阶段规划](docs/plans/ROADMAP.md)；[构建说明](docs/build/README.md)。
+- [统一项目状态](docs/STATUS.md)；[阶段规划与模拟器计划](docs/plans/ROADMAP.md)；[构建说明](docs/build/README.md)。
 - [设备验证规范](docs/device-validation/README.md)、[Windows 环境与调用记录](docs/device-validation/WINDOWS_EMULATOR_VALIDATION.md)、[Spatial/OpenXR 原型结果](docs/device-validation/2026-10-09-spatial-openxr/RESULT.md)。
 - [上游打包许可](docs/upstream/LEGAL.md)；上游说明不作为 Pico 验证结论。
 - [Native OpenXR skill](.agents/skills/pico-native-openxr/SKILL.md)、[WSL/Windows interop skill](.agents/skills/wsl-windows-interop/SKILL.md)：按任务读取所需 references/scripts，不重复维护实现或机器路径。

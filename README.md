@@ -2,8 +2,9 @@
 
 > **BS for Pico fork:** A standalone dual-ABI Android prototype now verifies Spatial UI ↔
 > native Vulkan OpenXR switching on the x86_64 PICO emulator. Beat Saber/Wine/Steam integration
-> and ARM64 Space Pro validation are not implemented or passed. See [AGENTS.md](AGENTS.md),
-> [Pico migration docs](docs/README.md), and [prototype results](docs/device-validation/2026-10-09-spatial-openxr/RESULT.md).
+> and ARM64 Space Pro validation are not implemented or passed. See [project status](docs/STATUS.md),
+> [roadmap and emulator plans](docs/plans/ROADMAP.md), [Pico migration docs](docs/README.md),
+> and [prototype results](docs/device-validation/2026-10-09-spatial-openxr/RESULT.md).
 > The Steam Frame results and instructions below describe the upstream implementation.
 
 > [!NOTE]
