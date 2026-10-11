@@ -1,0 +1,186 @@
+{
+  "schemaVersion": 1,
+  "catalogRevision": 1,
+  "modules": [
+    {
+      "id": "android-host", "name": "Android 产品宿主", "kind": "code",
+      "purpose": "Activity、实例协调、组件安装入口与版本化宿主接口", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "disabled", "updateUnit": "android-apk",
+      "compatibilityKeys": ["hostApi", "androidApi", "androidAbi", "pageSize"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "spatial-ui", "name": "Spatial 管理界面", "kind": "code",
+      "purpose": "正版准备、账号、设置及后续 mod 与谱面管理页面", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "disabled", "updateUnit": "android-apk",
+      "compatibilityKeys": ["hostApi", "spatialSdkVersion", "androidApi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "android-xr-bridge", "name": "Android Native XR 宿主桥", "kind": "code",
+      "purpose": "Native Activity、JNI、Android loader、XR 生命周期及 native Vulkan 所有权", "stage": "D3",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "disabled", "updateUnit": "android-apk",
+      "compatibilityKeys": ["hostApi", "xrBridgeAbi", "graphicsInteropAbi", "androidAbi", "pageSize"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "wine-runtime", "name": "Bionic Wine 与 Win32 运行环境", "kind": "code",
+      "purpose": "配套 Windows PE 与 Android Unix 半边、装载、线程和所需 Win32 服务", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "runtime-bundle",
+      "compatibilityKeys": ["hostApi", "wineBridgeAbi", "androidApi", "androidAbi", "peAbi", "pageSize"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "graphics-runtime", "name": "ARM64 DXVK 与 Wine Vulkan", "kind": "code",
+      "purpose": "D3D11 到 Vulkan 转接及匹配的 device、queue、图像 interop", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "runtime-bundle",
+      "compatibilityKeys": ["wineBridgeAbi", "graphicsInteropAbi", "peAbi", "driverId", "driverVersion", "gpu"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "windows-xr-bridge", "name": "ARM64 Windows XR 转接", "kind": "code",
+      "purpose": "Windows loader 与 Wine XR 配套桥，转接真实时间、空间、动作和图形绑定", "stage": "D3",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "runtime-bundle",
+      "compatibilityKeys": ["wineBridgeAbi", "xrBridgeAbi", "graphicsInteropAbi", "peAbi", "unityOpenxrVersion"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "game-steam-bridge", "name": "ARM64 游戏 Steamworks 桥", "kind": "code",
+      "purpose": "游戏 Steam API 与 Wine PE–Unix 接口封送，连接真实服务", "stage": "D2",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "runtime-bundle",
+      "compatibilityKeys": ["wineBridgeAbi", "serviceApi", "steamInterfaceVersions", "peAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "unity-engine", "name": "匹配游戏的 ARM64 Unity 引擎", "kind": "code",
+      "purpose": "用户合法准备的 Windows ARM64 Player、UnityPlayer、Mono 与 UnityOpenXR", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "licensed-user-import", "remotePolicy": "disabled", "updateUnit": "unity-engine-pack",
+      "compatibilityKeys": ["unityVersion", "unityOpenxrVersion", "monoAbi", "gameVersion", "peAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "mono-support", "name": "Mono 与 native 辅助库", "kind": "code",
+      "purpose": "MonoPosixHelper 和匹配的私有 C++ runtime 等 ARM64 native 依赖", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "runtime-bundle",
+      "compatibilityKeys": ["wineBridgeAbi", "monoAbi", "unityVersion", "peAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "steam-account-download", "name": "Steam 账号与下载适配", "kind": "code",
+      "purpose": "真实认证、Guard、库和 depot 下载协议；首轮实现仍随 APK", "stage": "D2",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "disabled", "updateUnit": "android-apk",
+      "compatibilityKeys": ["hostApi", "steamProtocolVersion", "androidApi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "steam-backend", "name": "真实 Steam 客户端服务", "kind": "code",
+      "purpose": "依法获取的真实 Steamworks 后端，不以账号下载库或模拟授权代替", "stage": "D2",
+      "implementationStatus": "planned", "deliveryMode": "licensed-user-import", "remotePolicy": "disabled", "updateUnit": "steam-service-pack",
+      "compatibilityKeys": ["serviceApi", "steamClientVersion", "steamInterfaceVersions", "backendAbi", "androidApi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "steam-bootstrap", "name": "Steam bootstrap 与服务适配器", "kind": "code",
+      "purpose": "匹配真实客户端的启动、会话、故障与退出适配，使用版本化私有 IPC", "stage": "D2",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "steam-service-pack",
+      "compatibilityKeys": ["serviceApi", "steamClientVersion", "backendAbi", "androidAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "audio-backend", "name": "游戏音频后端", "kind": "code",
+      "purpose": "Wine 音频到 Android 输出及设备暂停恢复", "stage": "D3",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "runtime-bundle",
+      "compatibilityKeys": ["wineBridgeAbi", "audioBackendAbi", "androidApi", "androidAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "gpu-driver", "name": "可选用户态 GPU 驱动", "kind": "code",
+      "purpose": "实际需要时选择的非系统 Vulkan ICD，不替换内核且不默认启用", "stage": "D3",
+      "implementationStatus": "planned", "deliveryMode": "runtime-bundle", "remotePolicy": "eligible-after-implementation", "updateUnit": "gpu-driver-pack",
+      "compatibilityKeys": ["gpu", "driverId", "driverVersion", "androidApi", "androidAbi", "graphicsInteropAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "game-content", "name": "正版 Beat Saber 内容", "kind": "content",
+      "purpose": "用户正版本体资源，本地导入或真实 Steam depot 获取", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "licensed-user-import", "remotePolicy": "disabled", "updateUnit": "game-content-pack",
+      "compatibilityKeys": ["gameVersion", "gameBuildId", "unityVersion", "contentPlatform"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "dlc-content", "name": "正版 DLC 内容", "kind": "content",
+      "purpose": "真实购买及安装状态下的 DLC depot，文件存在不代表持有授权", "stage": "D2",
+      "implementationStatus": "planned", "deliveryMode": "steam-depot", "remotePolicy": "eligible-after-implementation", "updateUnit": "dlc-content-pack",
+      "compatibilityKeys": ["gameVersion", "gameBuildId", "contentPlatform", "depotManifestId"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "bsipa-loader", "name": "BSIPA 与 mod 注入链", "kind": "code",
+      "purpose": "匹配的 Doorstop、IPA.Injector、BSIPA、MonoMod 与 ARM64 native 依赖", "stage": "D5",
+      "implementationStatus": "planned", "deliveryMode": "local-import", "remotePolicy": "eligible-after-implementation", "updateUnit": "mod-loader-pack",
+      "compatibilityKeys": ["gameVersion", "unityVersion", "monoAbi", "bsipaVersion", "peAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "mod-packages", "name": "mod 包与依赖集合", "kind": "code",
+      "purpose": "用户选择配置中的合法 mod、依赖、冲突及 native ABI 约束", "stage": "D5",
+      "implementationStatus": "planned", "deliveryMode": "local-import", "remotePolicy": "eligible-after-implementation", "updateUnit": "mod-package",
+      "compatibilityKeys": ["gameVersion", "modApi", "bsipaVersion", "monoAbi", "peAbi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "chart-content", "name": "自定义谱面内容", "kind": "content",
+      "purpose": "合法用户谱面、歌曲资源及游戏端实际加载能力", "stage": "D5",
+      "implementationStatus": "planned", "deliveryMode": "local-import", "remotePolicy": "eligible-after-implementation", "updateUnit": "chart-package",
+      "compatibilityKeys": ["chartFormat", "gameVersion", "modApi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "game-settings", "name": "游戏与启动配置", "kind": "data",
+      "purpose": "实例私有设置、原版与 modded 选择；云端不存用户实际配置", "stage": "D1",
+      "implementationStatus": "planned", "deliveryMode": "generated-local", "remotePolicy": "disabled", "updateUnit": "local-state",
+      "compatibilityKeys": ["hostApi", "settingsSchema", "gameVersion"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "input-profiles", "name": "输入绑定与控制器策略", "kind": "data",
+      "purpose": "目标设备实际支持的动作绑定与可选校准描述，不合成 tracking", "stage": "D3",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "eligible-after-implementation", "updateUnit": "profile-data",
+      "compatibilityKeys": ["inputSchema", "xrBridgeAbi", "interactionProfile"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "performance-profiles", "name": "画质与性能策略", "kind": "data",
+      "purpose": "已支持设置的设备兼容配置，登记不增加专项性能开发任务", "stage": "D4",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "eligible-after-implementation", "updateUnit": "profile-data",
+      "compatibilityKeys": ["settingsSchema", "gameVersion", "gpu", "driverId", "driverVersion"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "shader-cache", "name": "本地 shader 与 pipeline 缓存", "kind": "cache",
+      "purpose": "实际驱动支持时生成的缓存，初期不远程分发私有或不兼容缓存", "stage": "D4",
+      "implementationStatus": "planned", "deliveryMode": "generated-local", "remotePolicy": "disabled", "updateUnit": "local-cache",
+      "compatibilityKeys": ["cacheFormat", "graphicsInteropAbi", "gpu", "driverId", "driverVersion", "gameBuildId"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "diagnostic-tools", "name": "用户发起的诊断与日志入口", "kind": "code",
+      "purpose": "现有失败阶段和脱敏日志支持，不引入常开遥测或远端脚本执行", "stage": "D4",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "disabled", "updateUnit": "android-apk",
+      "compatibilityKeys": ["hostApi", "logSchema", "androidApi"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "localization-assets", "name": "界面语言资源", "kind": "data",
+      "purpose": "语言资源边界预留；首轮随 APK，不新增多语言功能承诺", "stage": "D4",
+      "implementationStatus": "planned", "deliveryMode": "apk", "remotePolicy": "eligible-after-implementation", "updateUnit": "localization-data",
+      "compatibilityKeys": ["hostApi", "languageFormat"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "system-xr-runtime", "name": "PICO 系统 XR runtime", "kind": "system",
+      "purpose": "登记系统提供的版本与扩展要求，更新由 PICO 系统负责", "stage": "external",
+      "implementationStatus": "planned", "deliveryMode": "system", "remotePolicy": "external-owner", "updateUnit": "system-owned",
+      "compatibilityKeys": ["osVersion", "xrRuntimeVersion", "xrExtensions", "interactionProfile"], "licenseStatus": "release-review-required", "releases": []
+    },
+    {
+      "id": "system-vulkan-driver", "name": "系统 Vulkan 驱动", "kind": "system",
+      "purpose": "默认 GPU ICD 及其能力约束，应用不刷写或替换系统驱动", "stage": "external",
+      "implementationStatus": "planned", "deliveryMode": "system", "remotePolicy": "external-owner", "updateUnit": "system-owned",
+      "compatibilityKeys": ["osVersion", "gpu", "driverId", "driverVersion", "vulkanFeatures"], "licenseStatus": "release-review-required", "releases": []
+    }
+  ],
+  "compatibilityUnits": [
+    {"id": "android-apk", "policy": "matched-release", "moduleIds": ["android-host", "spatial-ui", "android-xr-bridge", "steam-account-download", "diagnostic-tools"]},
+    {"id": "runtime-bundle", "policy": "matched-release", "moduleIds": ["wine-runtime", "graphics-runtime", "windows-xr-bridge", "game-steam-bridge", "mono-support", "audio-backend"]},
+    {"id": "unity-engine-pack", "policy": "matched-release", "moduleIds": ["unity-engine"]},
+    {"id": "steam-service-pack", "policy": "matched-release", "moduleIds": ["steam-backend", "steam-bootstrap"]},
+    {"id": "gpu-driver-pack", "policy": "independent", "moduleIds": ["gpu-driver"]},
+    {"id": "game-content-pack", "policy": "independent", "moduleIds": ["game-content"]},
+    {"id": "dlc-content-pack", "policy": "independent", "moduleIds": ["dlc-content"]},
+    {"id": "mod-loader-pack", "policy": "matched-release", "moduleIds": ["bsipa-loader"]},
+    {"id": "mod-package", "policy": "independent", "moduleIds": ["mod-packages"]},
+    {"id": "chart-package", "policy": "independent", "moduleIds": ["chart-content"]},
+    {"id": "local-state", "policy": "independent", "moduleIds": ["game-settings"]},
+    {"id": "profile-data", "policy": "independent", "moduleIds": ["input-profiles", "performance-profiles"]},
+    {"id": "local-cache", "policy": "independent", "moduleIds": ["shader-cache"]},
+    {"id": "localization-data", "policy": "independent", "moduleIds": ["localization-assets"]},
+    {"id": "system-owned", "policy": "system-owned", "moduleIds": ["system-xr-runtime", "system-vulkan-driver"]}
+  ],
+  "profiles": []
+}

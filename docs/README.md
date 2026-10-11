@@ -4,7 +4,7 @@
 
 | 目录 | 概况与入口 |
 |---|---|
-| `plans/` | [阶段目标与计划依赖](plans/ROADMAP.md)。 |
+| `plans/` | [产品架构](plans/ARCHITECTURE.md)、[组件与云清单](plans/COMPONENTS.md)及 [D1–D5 开发路线](plans/ROADMAP.md)：先原版可玩，后 BSIPA／mod／谱面管理。 |
 | `build/` | [APK 构建、部署与正版输入保护](build/README.md)。 |
 | `device-validation/` | [设备与模拟器实验索引](device-validation/README.md)，含环境记录和复现证据。 |
 | `decisions/` | [技术选择与重新评估条件](decisions/README.md)。 |

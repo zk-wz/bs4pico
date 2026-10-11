@@ -14,13 +14,10 @@ Pico CLI 的项目/设备工具和其 Agent 工作流要分开评估：有工作
 
 这些内容是开发资料与工程建议，尚未证明本 Fork 已在 Space Pro 上运行。
 
-## 模拟器运行环境与 Steam 候选
+## GameNative 实现参考
 
-2026-10-10 的讨论检索到以下上游候选资料；只取得检索返回的 PR/发布说明，完整网页及源码抓取未成功。以下不是已复核源码、许可结论、采用决策或本项目运行证据。
+2026-10-11 已读取 GameNative 固定提交 `1fbd2221da0ec90c4bcddf607c24fa338e4abe2a` 的公开源码；忽略的 `private/GameNative/` 留作本地参考，不作为已部署运行时或可再分发组件。
 
-| 候选来源 | 本轮要核查的问题 |
-|---|---|
-| [GameNative Android Proton 发布说明](https://github.com/GameNative/proton-wine/releases) | Android/Bionic补丁、实际 ELF宿主与 PE客体 ABI、构建/依赖闭包、匹配版本的 Unix-call与 Vulkan路径；x86_64/arm64ec标签不证明纯 ARM64客体可用 |
-| [Bionic Steam PR #1430](https://github.com/utkarshdalal/GameNative/pull/1430) | 真实客户端/bootstrap的来源、ABI、许可与可获取性，应用内登录和 Steamworks授权/回调语义；专有或 DRM组件需单独审查，不能直接复用未经核实的资产 |
+已用于设计的资料包括 Bionic Wine／Proton 构建、实际子进程启动、Steam 登录与独立服务，以及真正的 Windows OpenXR 双眼／动作桥。现有 XR Windows runtime 为 x86／x64，Android 侧是跨进程 GLES 提交；纯 ARM64／Vulkan 接入需要实际开发。部分启动、Steam bootstrap 与 GPU 组件是专有闭源，不把整个仓库当成可自由复编底座。
 
-对应执行计划：[E2运行环境](../plans/emulator-windows-runtime.md)、[E3真实服务](../plans/emulator-steam-service.md)、[E4图形桥](../plans/emulator-graphics-xr.md)。本轮以 x86_64模拟器可执行的自有探针为边界；候选缺少适用组件时不满足本地闭环前提，mock或额外 PC服务不作为本地闭环证据。
+固定源码与采用边界统一见 [产品架构的实现参考](../plans/ARCHITECTURE.md#实现参考)；按 [开发路线](../plans/ROADMAP.md)直接推进产品，在遇到具体实现问题时按需调研，不另开前置探针项目。

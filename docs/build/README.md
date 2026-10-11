@@ -2,6 +2,11 @@
 
 WSL 编译，Windows 模拟器部署；两份 checkout 不自动同步。本文保留操作入口，维护约定见 [AGENTS.md](AGENTS.md)。
 
+后续按 [D1–D5 开发路线](../plans/ROADMAP.md)演进同一 APK；新增 Bionic Wine／Steam／游戏 XR 构建和启动能力随实际实现补入本文，目前不能把下面的原型入口当成已能启动 Beat Saber 的产品命令。无运行需要只做 WSL 构建，不启动模拟器；需要设备时后台 CLI、不自动截图或抢焦点。
+
+组件版本与独立更新按 [共同契约](../plans/COMPONENTS.md)落地：D1 本地组件／启动快照先行，D4 再发布云清单与受控更新。当前 [`component-catalog.json`](../plans/component-catalog.json)只登记计划边界，不是构建锁、已部署服务或可下载 release；实际构建继续锁定源码和补丁，不因云目录变化自动追新。
+
+
 ## 原型入口
 
 源码：`prototypes/spatial-openxr/`。运行 `./prototypes/spatial-openxr/build-apk.sh`；默认两种 ABI，同一 APK。可用 `-PprobeAbis=x86_64` 或 `-PprobeAbis=arm64-v8a` 单独编译。`JAVA_HOME`、`ANDROID_HOME` 可覆盖；源码、`build/`、`.cxx/`、`.gradle/`、Gradle user home、SDK/NDK 均留在 WSL。`local.properties` 是本地忽略文件，设置 `sdk.dir`、`spatial.tools.dir`、`cmake.dir=/usr`。
@@ -12,7 +17,7 @@ WSL 编译，Windows 模拟器部署；两份 checkout 不自动同步。本文�
 
 设备调用先配置忽略的 `private/windows-tools.json`，字段和本机已验证值见上述环境记录；不要把宿主 EXE 路径重新写进脚本。任意 Windows 工具可复用 [interop skill](../../.agents/skills/wsl-windows-interop/SKILL.md) 的 `run/path/capture` 入口。首次依赖下载的范围见环境记录，必要的工具安装仍须 Ask。
 
-从仓库根目录构建、交接、启动：
+以下命令仅用于显式复现已有原型，不是产品开发每次必须执行的回归：
 
 ```bash
 ./prototypes/spatial-openxr/build-apk.sh

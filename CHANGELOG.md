@@ -2,6 +2,45 @@
 
 All notable changes to bs-arm64. Each release is built for one Proton build (see its release notes).
 
+## BS for Pico modular component planning – 2026-10-11
+
+### Added
+- Shared component catalogue/update contract and a publishable catalogue source
+  covering APK code, compatible runtime bundles, real Steam services, licensed
+  inputs, system components, local data and future mod/chart extensions.
+- Immutable resolution snapshots, matched upgrade units and planned signed
+  catalogue publication, staged activation, offline use and data-aware rollback.
+
+### Changed
+- Integrate local component resolution into D1, real Steam service packaging
+  into D2, hot-path identities into D3, cloud updates into D4 and later mods into
+  D5 without requiring every registered extension in the original-game scope.
+- Keep technology candidates open; research, selection and lightweight checks
+  happen during implementation. Use Ask before consequential architecture,
+  module, delivery or other technical tradeoffs instead of silently switching.
+- Synchronize conventions, navigation, status and the Native OpenXR skill.
+  Documentation/catalogue-source only: no cloud deployment, runtime
+  implementation, emulator operation or game launch.
+
+## BS for Pico development planning – 2026-10-11
+
+### Added
+- Product architecture and five implementation plans covering the ARM64 game
+  runtime, real Steam integration, playable native OpenXR/audio, original-game
+  delivery, and deferred BSIPA/mod/chart management.
+- Shared instance, launch and run-state contracts; keep the original game path
+  separate from later modded instances.
+
+### Changed
+- Replace the emulator-only runtime, Steam and graphics preflight plans with
+  direct product development and lightweight checks of the implemented path.
+- Reuse completed host/XR work without routine reruns; use background CLI and
+  avoid unsolicited emulator focus or screenshots.
+- Exclude LIV/mixed-reality capture development and dedicated validation.
+- Align status, navigation, host conventions and the Native OpenXR skill with
+  the development-first workflow. Documentation-only change; no emulator,
+  game launch or new runtime implementation was performed.
+
 ## BS for Pico development – 2026-10-09
 
 ### Added
