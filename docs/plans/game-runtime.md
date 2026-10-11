@@ -18,7 +18,7 @@
 | `platform/LaunchActivity.kt`、`content/HomePage.kt` | 将“进入验证场景”改成正版导入、实例准备、真实启动、失败说明与本次日志；沿用现有 Spatial 主题和页面。 |
 | `platform/SpatialApplication.kt`、`platform/VrActivity.kt`、Manifest | 加入管理/游戏进程分工、串行交接和进程条件初始化；原弱引用所有权不能跨进程沿用。 |
 | `ProbeData.kt` | 将临时访问计数数据替换为产品实例清单与运行状态；不把原型计数当游戏状态。 |
-| 原型 `app/src/main/cpp/CMakeLists.txt`、`xrprobe.cpp`、Gradle 与 `build-apk.sh` | 复用 Android loader、Surface/VM 生命周期基础，接入游戏宿主库；D3 替换测试场景帧循环，不保留假游戏画面。 |
+| 原型 `app/src/main/cpp/CMakeLists.txt`、`xrprobe.cpp`、Gradle 与 `build-apk.sh` | 复用 Android loader、Surface/VM 生命周期基础，接入游戏宿主库；D1 产品游戏启动不得先走探针画面，原测试不作 D1 fallback；D3 再接真实游戏 XR 帧循环。 |
 | `versions.env`、`build.sh`、`patches/wine/`、`src/wine-runtime/` | 保留 Windows ARM64 组件构建，新增 Bionic Wine 宿主/Unix 半部的明确构建目标与补丁锁。 |
 | `src/unityopenxr/patch_unityopenxr.py`、`patches/openxr-loader/`、`src/monoposixhelper/`、`src/steam-api/` | 复用已存在的 Unity 插件适配、runtime 发现、Mono 辅助库及 Steam API 转接；分别接 D3/D2。 |
 | `install/bs-arm64.sh` | 复用其组件清单、安装记录与替换规则，重写为 Android 受控安装事务；它仍是 Frame 脚本，不能直接在 Android 执行。 |
@@ -36,6 +36,29 @@
 - `runtimeReady` 不能把游戏标为已授权或 `playing`；状态转换必须对应实际 Player／Mono／XR／游戏行为，stage/error/logRefs 保留失败位置。
 - 用 runId/生命周期 epoch 拒绝旧回调，运行日志通过引用回看，不把逐帧 pose/图像传给 Spatial 管理进程。
 
+## 实施门槛与并行安排
+
+源码与输入事实、固定链接及校验值集中在 [D1 Bionic Wine 专题](../research/2026-10-11-d1-bionic-wine-runtime.md)，本计划不重复维护调查记录。**当前只交付规划，等待用户选择窗口／音频边界，不开始 runtime／构建锁实现。**
+
+- 待选 A：原生窗口／系统 Vulkan WSI + 公开 ALSA→AAudio；推荐方向，但对应音频源码／许可尚未齐全，不能当已可用依赖。
+- 待选 B：公开 GameNative XServer／X11／ALSA复用；需接受宿主接线、依赖和 GPL 复用边界，不含闭源 redirect。
+- 待选 C：原生窗口／系统 Vulkan WSI + 自有完整 Wine AAudio驱动；减少外部音频服务但增加实现与维护负担。
+- 三项均保留同 APK `:game` 内游戏／XR同进程、纯 Windows ARM64与系统 Vulkan；不自动改选后端／引擎版本。遇不可替代缺项先给证据和2–5项取舍再 Ask，不把候选写成决定。
+
+获准实施后，下述“顺序”是产物依赖，不是先做长期可行性阶段：**可恢复导入与 runtime源码／构建并行启动**；合法 Player／Mono获取和 APK宿主公共协议并行，真实 native接线等构建ABI确定。文件所有权分开：runtime负责 `src/wine-runtime/android/`、`patches/wine/`、根构建／版本锁；宿主负责 app Kotlin／UI、Manifest、app CMake／Gradle／build-apk及导入／备份。不得用占位JNI让宿主先宣称启动可用。
+
+| 分段／依赖 | 可交付产物 | 每步一次最小验证 | 接受／失败停止条件 |
+| --- | --- | --- | --- |
+| 1 导入，可与2并行 | 源摘要基线、独立备份／恢复映射、staging→原子提交工作实例，复用“顺序1” | 一次真实导入核源未变／备份摘要／独立work／恢复映射，事务中断不发布半成品 | 备份不完整、空间不足或原件发生变化：停止所有游戏文件写入，保留已有备份；不能以工作副本当备份 |
+| 2 runtime构建，等后端选择 | 明确源码／patch顺序／许可、纯ARM64 Bionic及配套PE、合法wineserver载荷和依赖闭包；新增真实构建目标 | 一次完整目标构建加产物检查：ELF ABI／DT_NEEDED／SONAME／16KB、PE machine／imports、PE–Unix协议和补丁摘要 | 缺工具列最小取得／环境方案；来源／许可不齐停止采用对应依赖，不默认运行上游环境安装脚本；不发布假RuntimeSet |
+| 3 宿主协议，可与1/2并行；native接线依赖2 | 同APK `:game`条件初始化，消费已提交请求，VM／Activity／Surface寿命，runId／epoch事件和停止确认 | 在同一产品APK核请求快照与渲染所有权交接；实际native装载并入4，不重跑E1／不另建探针APK | 暂未有runtime时只报告“未就绪”；签名／ABI不符不调用；不以旧探针或空启动函数替代 |
+| 4 真入口与后端，依赖2/3 | 真实Wine Android初始化及线程／TLS／x18／ART信号／退出适配，选定窗口／Vulkan WSI／音频完整接线 | 一次同产品APK装载核实际ntdll／系统PE、服务连接、窗口／音频建立与释放、ART处理链和宿主回调；尚无Player不报engine-running | x18／TEB错用、信号链失效、私有系统库依赖或正常路径调用进程exit：停止推进Unity，修源；实际证据要求改布局才重开架构Ask |
+| 5 本地解析／安装，依赖真实产物与合法输入；不等待D2/D3完成 | 实载来源／摘要／兼容锁、ResolutionSnapshot、受控部署记录，复用“顺序2” | 一次核快照与安装文件一致，缺失／不兼容组件拒绝激活；取得合法模块时核版本和纯ARM64 Player／Mono | 当前canonical Player模块geo最终404且未取得；可继续1–4，不启动Unity／不改版，不把输入缺失归为D2/D3失败 |
+| 6 真实Unity及退出，依赖1–5全部就绪 | 同页面启动正版工作副本，真实Player初始化／Mono Managed入口与日志，再正常返回Spatial | **一次真实Unity冒烟，同次正常退出**：PE装载→Player→Mono／JIT，实载摘要／快照、失败阶段和资源释放证据归同runId | 必须真实加载并执行Player／Mono；模块映射或loader日志不足。Steam／XR可真实失败；前置装载／WSI／Mono失败不算完成。保留原因再修对应实现，不循环探针／压测 |
+
+接口在接线时一次明确：库名／APK加载路径／Android ABI与API、配套PE–Unix版本；已提交LaunchRequest的读取权限；VM／Activity引用与ANativeWindow获取释放；异步start的真实错误、低频stage/logRefs事件、stop及清理完成回报。JNIEnv不跨线程，不让Windows x18状态进入一般JNI；不传任意shell／未提交路径。公共schema继续以共享契约为准，不在此预定空release/profile。
+
+
 ## 实现顺序 1 · 可恢复的正版导入
 
 1. 在现有 Spatial 页面接系统文档授权，选择设备可访问的正版目录；WSL 已有输入先按备份约定准备校验过的导入副本，再通过受控文件交接放到设备可导入位置，不把 WSL 路径当 SAF URI。检查 1.44.1 的数据、Managed、插件与 Unity 版本，不把下载或账号登录作为本地导入前提。
@@ -51,7 +74,7 @@
 2. 本地解析产出明确 `runtimeSetId` 与 `ResolutionSnapshot`，锁定源码 commit、补丁摘要、NDK/API、ABI、组件摘要及 PE/Unix 协议兼容关系；将快照引用提交至实例与启动请求，不以下载缓存存在代替兼容锁。`RuntimeSet` 成对绑定 Wine、DXVK、Windows XR、Steam PE/Unix 转接与引擎兼容性，安装器只激活已实现且允许的合法兼容组件。
 3. 沿用 `versions.env` 的 Unity `6000.0.40f1`、Unity OpenXR `1.14.3` 与原版 1.44.1 配套；WindowsPlayer/UnityPlayer/Mono 和必经 native DLL 必须是纯 Windows ARM64。
 4. Unity 受限组件由用户侧合法获取并验证版本/摘要，不进 Git/APK；游戏资源与凭据同样排除。可再分发组件同时保留来源和许可证。
-5. Wine Unix 侧使用 Android ARM64 ELF/Bionic；GameNative/proton-wine 是当前移植候选而非唯一允许方案，不运行普通 glibc Wine tar 包，不使用 root/PRoot。实施相关功能时查主文档、源码、上游问题及更新/替代方案，比较 ABI、性能、许可、生命周期和维护成本。
+5. Wine Unix 侧使用 Android ARM64 ELF/Bionic，GameNative/proton-wine 是已批准开发基线；实质切换必须先给证据并 Ask，不运行普通 glibc Wine tar 包，不使用 root/PRoot。纯 ARM64 与官方 ARM64EC/i386 组合构建必须分开核验；采用源码与外加补丁完整锁定，不能把 fork 的现成脚本当已支持纯 ARM64 嵌入。
 6. 当前 `WINE_COMMIT` 是 Frame 上游组件基线，不代表已完成 Bionic 移植；选择并记录 Android fork 与 PE/Unix 接口兼容的组合，成对重建 `lsteamclient`/`wineopenxr`，不能混用两个分支的结构定义。内部 bootstrap/服务适配及其依赖变化须匹配更新，不承诺永久免维护或自动升级任意库。
 7. 复用现有 Wine EH/私有 C++ runtime 补丁，并把所需 FPCR/FPSR 修正在源码层集成；不把 Linux `mprotect` 二进制修改当成 Android 必须依赖。
 8. 已批准首选为系统 Vulkan ICD 与 Windows ARM64 DXVK `dxgi.dll/d3d11.dll`；出现实际功能/性能问题时调查包括但不限于 Turnip 的替代方案，重大取舍先 Ask，再采用；不默认加 VKD3D、glibc 或游戏热路径的 Box64/FEX。
@@ -62,8 +85,8 @@
 ## 实现顺序 3 · 实现真正 Wine 游戏宿主
 
 1. Manifest 将 VrActivity 和宿主放入独立 `:game` 进程；Application 按实际进程初始化，管理进程才启动 Spatial，游戏进程只准备 VM/Activity/Native Surface 与游戏依赖。
-2. 首选在 `:game` 内实现可嵌入 Wine 启动入口，使 Windows 游戏与 Android XR 后端共享 native 进程及兼容 Vulkan device；这不是 GameNative 已提供的 JNI 能力。
-3. 将 Wine 启动、线程/TLS、信号处理、Windows 异常、JNI 引用和 native teardown 接到 Activity 生命周期；隔离 Wine 的进程级退出，不能让 `exit()` 或残留 handler 损坏管理进程。
+2. 在 `:game` 内实现真实可嵌入 Wine 启动入口，使 Windows 游戏与 Android XR 后端共享 native 进程及兼容 Vulkan device；fork 有 WineAndroid JNI 源码入口，但 GameNative 应用未完成本产品同进程可返回宿主，普通 `dlopen`/JNI wrapper 不能替代适配。
+3. 将 Wine 启动、线程/TLS、Windows x18与Android保留状态、ART信号链、Windows 异常、JNI 引用和 native teardown 接到 Activity 生命周期；`-ffixed-x18` 不修复 PE/手写汇编或异步边界。正常Wine退出须真实清理并回报，不能把进程级 `exit/_exit`、强杀或跨活跃线程 longjmp 当正常返回。
 4. 搭建 Wine 必要窗口/Surface、文件映射、注册表、字体与音频后端，保留 Unity 启动要求的窗口系统；不因最终不展示桌面镜像就假设 Unity 可以无窗口执行。
 5. 用 LaunchRequest 启动工作副本内真实 Beat Saber executable，加载 ARM64 UnityPlayer/Mono；将 stdout/stderr、Wine 错误、Unity Player.log 和 native crash 关联到同一 runId。
 6. 若现场实现证明无法可靠嵌入，调查包括 Wine 子进程 + Android XR 外部内存/fence 与帧 RPC 在内的方案；用证据和推荐集中 Ask 2–5 个实际选项，用户选择后再切换。进程边界详见 [D3](game-openxr.md)，不退回独立可行性项目。
@@ -83,7 +106,7 @@
 ## 边实现边做的必要轻量验收
 
 - 导入接好时走一次真实页面路径：只读源摘要未变、备份可读且摘要匹配、工作副本独立；安装事务前的恢复核对是数据保护，不是反复游戏探针。
-- 组件及宿主接好时用同一正版副本启动一次真实 Unity；保留实际 DLL/Mono 装载、Player.log、Steam/XR 成功或失败阶段，失败直接修复对应实现，不另建最小测试运行时。
+- 已校验备份、合法同版本 ARM64 Player/Mono、完整 runtime、解析快照与宿主接线全部就绪后，用同一正版工作副本启动一次真实 Unity；保留实际 Player初始化／Mono Managed执行与JIT、实载摘要、Player.log、Steam/XR成功或失败阶段。前置缺项如实阻止启动；失败修对应实现，不另建最小测试运行时。
 - 本地解析接好时经同一页面准备与真实 Unity 启动核对实际载入版本/摘要、RuntimeSet 与 `resolutionSnapshotRef` 一致；缺失、不兼容或未知组件如实阻止激活，当前运行固定快照不被替换。此为实现中的真实路径验收，不是本轮文档运行设备。
 - 页面交接接好时在该次启动后正常退出回 Spatial，一次确认数据/日志可读和管理/游戏渲染互斥；涉及歌曲的判定留给 D3 同一产品路径。
 - 构建/必要静态工作优先 WSL；需要设备才使用后台 CLI 与已有实例，不自动截图、恢复窗口或抢焦点；空间人工交互或前台截图确有必要时集中 Ask 一次。

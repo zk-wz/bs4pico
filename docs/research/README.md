@@ -8,6 +8,10 @@
 
 Pico CLI 的项目/设备工具和其 Agent 工作流要分开评估：有工作流可以调用 Gradle 构建，不代表具备独立编译器，也不代表自动支持跨 WSL 构建。缓存方案见 [构建说明](../build/README.md)。
 
+## D1 专题
+
+- [Bionic Wine 运行链与 Android 产品宿主（D1）](2026-10-11-d1-bionic-wine-runtime.md)：Wine 嵌入边界的源码事实（JNI 初始化路径、TEB／TLS 与 Android x18、ART 信号链、退出与服务、窗口／WSI、纯 ARM64 与上游 ARM64EC 构建、音频与许可）及本轮对官方 Unity 输入与官方 OpenXR 插件的只读验证证据（PE、版本、摘要与字节对比）；窗口／音频复用边界待用户决定。机器路径与大型原始输出只留在本机忽略目录。
+
 ## Native OpenXR 知识入口
 
 2026-10-07 整理了项目 skill：[pico-native-openxr](../../.agents/skills/pico-native-openxr/SKILL.md)。官方网页及已检查 LLM 文本入口见 [来源说明](../../.agents/skills/pico-native-openxr/references/sources.md)；Android 接入、渲染/坐标/输入、扩展性能和 BS for Pico 桥接分别放在其 references 中。

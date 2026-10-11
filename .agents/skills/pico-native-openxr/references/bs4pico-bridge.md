@@ -18,6 +18,8 @@ E1 历史结果见 `docs/device-validation/2026-10-10-emulator-host-xr-e1/RESULT
 
 直接在产品宿主中接入 Bionic ARM64 Wine、真实 Windows ARM64 Unity／Mono 与 Android XR，优先实现游戏／XR 同进程同 Vulkan device，不把独立宿主或自有 Windows 探针作为先行项目。Wine 同进程入口尚需开发；出现实际嵌入冲突时调查修复及其他布局，不只限定于既有外部内存／同步候选，实质切换先用 Ask 决定；不直接跨进程传句柄。无 root 不等于必须 PRoot，也不证明 glibc Linux 二进制可直接运行在 Bionic 上。
 
+D1 的源码／输入证据集中在 [Bionic Wine 专题](../../../../docs/research/2026-10-11-d1-bionic-wine-runtime.md)，分段依赖与停止条件只维护于 [游戏运行链计划](../../../../docs/plans/game-runtime.md#实施门槛与并行安排)。fork 有 WineAndroid JNI 源码入口，但并非本产品已可返回的嵌入宿主；x18／ART信号／退出须源码适配，不能仅加编译flag。当前等待窗口／音频复用边界选择，不把规划或原型画面当D1运行成功。
+
 ## 桥必须正确转接的内容
 
 从游戏启动 trace/源码明确实际需要的核心函数与扩展，并建立兼容范围：instance/system/session、空间与 events、帧时序、views、swapchains、actions/bindings/haptics、Vulkan 图形要求和创建。不同系统可用的 graphics binding 可能不同；例如 Windows D3D11 XR 绑定需要转成真正的 Android Vulkan 绑定，不能把 D3D 句柄传给 Pico。

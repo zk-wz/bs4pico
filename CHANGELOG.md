@@ -2,6 +2,54 @@
 
 All notable changes to bs-arm64. Each release is built for one Proton build (see its release notes).
 
+## D1 implementation planning and source verification – 2026-10-11
+
+### Added
+- Research topic `docs/research/2026-10-11-d1-bionic-wine-runtime.md`: source-level
+  facts for the Bionic Wine embedding boundary — the real Wine Android JNI
+  initialization path (`JNI_OnLoad → wine_init_jni → start_main_thread` and the
+  `WineActivity` load path, not a return-capable embedded host), TEB/TLS versus
+  Android's x18 reservation, Wine signal handlers versus the ART signal chain,
+  process-exit and wineserver/wineloader paths, `wineandroid.drv` window/WSI
+  (no Vulkan interface, private libhardware/gralloc traversal), pure ARM64 versus
+  the upstream ARM64EC/i386 build scripts, and audio/license/Android exec limits.
+- Read-only verification of the official Unity inputs recorded with that topic:
+  the Unity 6000.0.40f1 release metadata and the `windows-mono` canonical module
+  URL matching the existing installer pin, plus the official OpenXR 1.14.3
+  package's tarball and the ARM64/desktop plugin PE, version and byte comparison.
+- Skill reference `.agents/skills/pico-native-openxr/references/bs4pico-bridge.md`:
+  the three-segment game→Windows→Android XR interface split and the D1 boundary
+  (the fork's WineAndroid JNI entry is not a return-capable host; x18/ART-signal/
+  exit need source-level adaptation, not compile flags alone).
+
+### Changed
+- D1 plan `docs/plans/game-runtime.md`: added the implementation gate and parallel
+  arrangement — the window/audio reuse decision (native window/WSI + ALSA→AAudio,
+  GameNative XServer reuse, or an own Wine AAudio driver), the split of runtime
+  versus host ownership, and six dependency-ordered stages (import; runtime build;
+  host protocol; real entry and backend; local resolution/install; real Unity and
+  exit) each with one minimal verification and explicit acceptance/stop
+  conditions. Completion criteria are unchanged; embedding notes now state that no
+  placeholder JNI, probe fallback or unfinished loader may stand for a real start.
+- Status, changelog and the research index point at the D1 topic; the window/audio
+  reuse boundary and the pending licensed Player/Mono input stay open.
+
+### Notes
+- Read-only verification, no implementation: the official Unity OpenXR 1.14.3
+  package was fetched into ignored local storage; the tarball matches the official
+  UPM registry, `Runtime/universalwindows/arm64/UnityOpenXR.dll` is an ARM64 PE
+  (`0xaa64`, FileVersion 1.14.3.0, UWP build), and the package's desktop x64
+  variant is byte-identical to the same file in the licensed 1.44.1 input. The
+  package ships no desktop ARM64 variant.
+- Unity 6000.0.40f1 official release metadata confirms the pinned changeset and
+  the exact Windows-Mono module URL already used by `install/bs-arm64.sh`; that
+  canonical URL ends at HTTP 404 through this machine's geo redirect, so no Player
+  file was obtained.
+- The licensed 1.44.1 input is entirely x86-64 and was not written to; its
+  immutable baseline still has to be established when the import transaction lands.
+- No runtime implementation, no emulator/device operation, no game launch, no
+  cloud catalogue release or compatibility profile. **D1 is not complete.**
+
 ## BS for Pico modular component planning – 2026-10-11
 
 ### Added
